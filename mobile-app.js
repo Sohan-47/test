@@ -1,4 +1,4 @@
-/* ===== ABLE MOBILE - FINAL PRODUCTION BUILD ===== */
+/* ===== ABLE MOBILE - SMART ENGINE v2 ===== */
 
 // Global State
 let currentTool = 'pointer';
@@ -49,31 +49,41 @@ const pCtx = previewLayer.getContext('2d', { alpha: true });
 let activeMathBox = null;
 let activeTextArea = null;
 
-// === FULL SHORTCUT LIST ===
+// === SMART SHORTCUTS ===
+// '•' is the Placeholder. The cursor will jump to the first '•' it finds.
 const shortcuts = {
+    // Greek
     'alpha': '\\alpha', 'beta': '\\beta', 'gamma': '\\gamma', 'delta': '\\delta', 'epsilon': '\\epsilon',
-    'vepsilon': '\\varepsilon', 'zeta': '\\zeta', 'eta': '\\eta', 'theta': '\\theta', 'vtheta': '\\vartheta',
-    'iota': '\\iota', 'kappa': '\\kappa', 'lambda': '\\lambda', 'mu': '\\mu', 'nu': '\\nu', 'xi': '\\xi',
-    'pi': '\\pi', 'rho': '\\rho', 'vrho': '\\varrho', 'sigma': '\\sigma', 'tau': '\\tau', 'upsilon': '\\upsilon',
-    'phi': '\\phi', 'vphi': '\\varphi', 'chi': '\\chi', 'psi': '\\psi', 'omega': '\\omega',
-    'Gamma': '\\Gamma', 'Delta': '\\Delta', 'Theta': '\\Theta', 'Lambda': '\\Lambda', 'Xi': '\\Xi',
-    'Pi': '\\Pi', 'Sigma': '\\Sigma', 'Upsilon': '\\Upsilon', 'Phi': '\\Phi', 'Psi': '\\Psi', 'Omega': '\\Omega',
-    'ify': '\\infty', 'pm': '\\pm', 'grad': '\\nabla', 'del': '\\partial', 'xx': '\\times', 'ast': '\\cdot', 'times': '\\times',
-    'tf': '\\therefore', 'bc': '\\because', 'and': '\\land', 'or': '\\lor', 'not': '\\neg', 'eqv': '\\equiv',
-    'sim': '\\sim', 'approx': '\\approx', 'prop': '\\propto', 'LL': '\\ll', 'GG': '\\gg', 'AA': '\\forall', 'EE': '\\exists',
-    'bra': '\\bra{#@}', 'ket': '\\ket{#@}', 'braket': '\\braket{#@ | #@}', 'hatH': '\\hat{H}', 'dag': '\\dagger', 'hbar': '\\hbar', 'ell': '\\ell',
-    'ale': '\\aleph', 'bet': '\\beth', 'dal': '\\daleth', 'mscr': '\\mathscr{#@}', 'in': '\\in', 'notin': '\\notin', 'uu': '\\cup', 'nn': '\\cap',
-    'sub': '\\subset', 'sup': '\\supset', 'sube': '\\subseteq', 'supe': '\\supseteq', 'eset': '\\emptyset',
-    'RR': '\\mathbb{R}', 'ZZ': '\\mathbb{Z}', 'NN': '\\mathbb{N}', 'CC': '\\mathbb{C}', 'QQ': '\\mathbb{Q}',
-    'int': '\\int', 'dint': '\\int_{#@}^{#@}', 'iint': '\\iint', 'iiint': '\\iiint', 'oint': '\\oint', 'oiint': '\\oiint', 'oiiint': '\\oiiint',
-    'prod': '\\prod_{#@}^{#@}', 'sum': '\\sum_{#@}^{#@}', 'bcap': '\\bigcap', 'bcup': '\\bigcup', 'bop': '\\bigoplus', 'bot': '\\bigotimes',
-    'asin': '\\arcsin', 'acos': '\\arccos', 'atan': '\\arctan', 'sinh': '\\sinh', 'cosh': '\\cosh', 'log': '\\log_{#@}{#@}', 'ln': '\\ln{#@}',
-    'can': '\\cancel{#@}', 'box': '\\boxed{#@}', 'obra': '\\overbrace{#@}^{#@}', 'ubra': '\\underbrace{#@}_{#@}', 'ang': '\\angle', 'perp': '\\perp',
-    'para': '\\parallel', 'tri': '\\triangle', 'sq': '\\square', 'deg': '^\\circ', '||': '\\| #@ \\|', 'bar': '\\bar{#@}', 'vec': '\\vec{#@}',
-    'hat': '\\hat{#@}', 'dot': '\\dot{#@}', 'ddot': '\\ddot{#@}', 'dddot': '\\dddot{#@}', 'tilde': '\\tilde{#@}', '^T': '^{T}',
-    'impl': '\\implies', 'iff': '\\iff', 'ib': '\\impliedby', 'up': '\\uparrow', 'dn': '\\downarrow', 'lr': '\\leftrightarrow', 'map': '\\mapsto',
-    'har': '\\rightleftharpoons', 'mcal': '\\mathcal{#@}', 'mfr': '\\mathfrak{#@}', 'mtt': '\\mathtt{#@}', 'mbf': '\\mathbf{#@}', 'mit': '\\mathit{#@}',
-    'lim': '\\lim_{#@ \\to #@}', 'fr': '\\frac{#@}{#@}', 'rt': '\\sqrt{#@}' // Helpers
+    'theta': '\\theta', 'pi': '\\pi', 'rho': '\\rho', 'sigma': '\\sigma', 'phi': '\\phi', 'omega': '\\omega',
+    'Delta': '\\Delta', 'Theta': '\\Theta', 'Sigma': '\\Sigma', 'Omega': '\\Omega', 'grad': '\\nabla',
+    
+    // Calculus
+    'int': '\\int', 
+    'dint': '\\int_{•}^{•}', // Definite Integral with jumps
+    'iint': '\\iint', 'sum': '\\sum_{•}^{•}', 'prod': '\\prod_{•}^{•}',
+    'lim': '\\lim_{• \\to •}', 
+    'part': '\\partial', 'diff': '\\frac{d•}{d•}', 'pdiff': '\\frac{\\partial •}{\\partial •}',
+
+    // Operations
+    'fr': '\\frac{•}{•}', 'frac': '\\frac{•}{•}',
+    'sq': '\\sqrt{•}', 'sqrt': '\\sqrt{•}',
+    'pow': '^{•}',
+    
+    // Logic/Sets
+    'in': '\\in', 'notin': '\\notin', 'cup': '\\cup', 'cap': '\\cap',
+    'RR': '\\mathbb{R}', 'ZZ': '\\mathbb{Z}', 'NN': '\\mathbb{N}',
+    'to': '\\to', 'map': '\\mapsto', 'implies': '\\implies', 'iff': '\\iff',
+    
+    // Vectors & Accents (The "Smart" Macros)
+    'vec': '\\vec{•}', 
+    'hat': '\\hat{•}', 
+    'bar': '\\bar{•}',
+    'dot': '\\dot{•}',
+    'gradvec': '\\vec{\\nabla}', // Specific User Request
+    
+    // Misc
+    'inf': '\\infty', 'ify': '\\infty', 
+    'pm': '\\pm', 'xx': '\\times', 'cdot': '\\cdot'
 };
 
 // INITIALIZATION
@@ -106,101 +116,120 @@ function setupEventListeners() {
     document.getElementById('tool-grid').addEventListener('click', toggleGrid);
     document.getElementById('tool-clear').addEventListener('click', clearEditor);
     document.getElementById('tool-undo').addEventListener('click', performUndo);
+    
+    // Text Input Events
     document.getElementById('text-input-done').addEventListener('click', finishTextInput);
-    document.getElementById('btn-help').addEventListener('click', () => helpModal.classList.add('active'));
-    document.getElementById('help-close').addEventListener('click', () => helpModal.classList.remove('active'));
-
-    // ENGINE
     textInputArea.addEventListener('input', handleCursorEngine);
-
-    // GESTURES
+    
+    // Touch Events
     viewport.addEventListener('touchstart', onTouchStart, { passive: false });
     viewport.addEventListener('touchmove', onTouchMove, { passive: false });
     viewport.addEventListener('touchend', onTouchEnd, { passive: false });
+    
+    // Help Modal
+    document.getElementById('btn-help').addEventListener('click', () => helpModal.classList.add('active'));
+    document.getElementById('help-close').addEventListener('click', () => helpModal.classList.remove('active'));
 }
 
 /* =========================================
-   1. SHORTCUT ENGINE (Handles #@ Placeholders)
+   1. SMART EXPANSION ENGINE
    ========================================= */
 function handleCursorEngine(e) {
+    // 1. Always update preview immediately so user sees what they typed
     updateLatexPreview();
+    
     if (!isMathMode) return;
 
     const cursor = textInputArea.selectionStart;
     const text = textInputArea.value;
     const textBefore = text.slice(0, cursor);
     
-    // Match word at end of string
-    const match = textBefore.match(/([a-zA-Z]+)$/);
+    // Regex: Match the "word" ending exactly at the cursor
+    // This allows "int" to match, but "print" (ending in int) to NOT match if we check boundaries carefully.
+    // However, for speed, we usually just match the suffix.
+    // We add a check: char before match must be non-letter or empty.
+    const match = textBefore.match(/([a-zA-Z0-9]+)$/);
 
     if (match) {
         const word = match[1];
         const wordStart = match.index;
         
-        if (shortcuts[word]) {
-            const charBefore = textBefore.charAt(wordStart - 1);
-            if (charBefore === '\\') return; // Prevent double slash
-
-            let replacementRaw = shortcuts[word];
+        // --- A. PATTERN MATCHING (Matrices) ---
+        // Matches "32mat" or "22det"
+        if (word.match(/^[1-9][1-9](mat|det)$/)) {
+            const rows = parseInt(word[0]);
+            const cols = parseInt(word[1]);
+            const type = word.endsWith('mat') ? 'pmatrix' : 'vmatrix';
             
-            // Handle Placeholders (#@)
-            // 1. Where should the cursor go? (Index of first #@)
-            let cursorOffset = replacementRaw.indexOf('#@');
-            
-            // 2. Remove all #@ for the actual text
-            let insertText = replacementRaw.replace(/#@/g, '');
-            
-            // 3. If no placeholder found, cursor goes to end
-            if (cursorOffset === -1) cursorOffset = insertText.length;
-
-            const beforeWord = textBefore.slice(0, wordStart);
-            const textAfter = text.slice(cursor);
-            
-            textInputArea.value = beforeWord + insertText + textAfter;
-            
-            // Set Cursor
-            const newCursorPos = beforeWord.length + cursorOffset;
-            textInputArea.setSelectionRange(newCursorPos, newCursorPos);
-            updateLatexPreview();
+            replaceWithStructure(rows, cols, type, wordStart, cursor, text);
+            return;
         }
-    }
-    
-    // Matrix Handling (Fast)
-    if (textBefore.endsWith('mat') || textBefore.endsWith('det')) {
-        const r = textBefore.charAt(textBefore.length - 5);
-        const c = textBefore.charAt(textBefore.length - 4);
-        const type = textBefore.endsWith('mat') ? 'pmatrix' : 'vmatrix';
-        
-        if (!isNaN(r) && !isNaN(c)) {
-            const startIdx = textBefore.length - 5;
-            const replacement = generateStructure(r, c, type);
-            const before = textBefore.slice(0, startIdx);
-            const after = text.slice(cursor);
-            textInputArea.value = before + replacement + after;
-            // Move cursor to first #@
-            const firstSlot = replacement.indexOf('#@');
-            const finalText = textInputArea.value.replace(/#@/g, '');
-            textInputArea.value = finalText; // Clean placeholders
-            
-            // Position cursor inside first slot roughly (simple approx for matrix)
-            const finalPos = before.length + (firstSlot !== -1 ? firstSlot : replacement.length);
-            textInputArea.setSelectionRange(finalPos, finalPos);
-            updateLatexPreview();
+
+        // --- B. DICTIONARY MATCHING ---
+        if (shortcuts[word]) {
+            // Safety: Don't replace if it's already a command (preceded by backslash)
+            const charBefore = textBefore.charAt(wordStart - 1);
+            if (charBefore === '\\') return;
+
+            // Perform Replacement
+            const replacement = shortcuts[word];
+            performReplacement(wordStart, cursor, text, replacement);
         }
     }
 }
 
-function generateStructure(r, c, type) {
-    let s = `\\begin{${type}}`;
-    for (let i = 0; i < r; i++) {
-        for (let j = 0; j < c; j++) s += (j<c-1) ? '#? & ' : '#?';
-        if (i < r - 1) s += ' \\\\ ';
+function performReplacement(start, end, fullText, replacementTemplate) {
+    // 1. Analyze Template
+    // We look for '•' which indicates where the cursor should jump.
+    const firstPlaceholderIndex = replacementTemplate.indexOf('•');
+    
+    // 2. Clean Template for insertion (remove the placeholder marker)
+    // If we have a placeholder, we remove ONE of them to put the cursor there.
+    // Actually, usually we keep the placeholder EMPTY.
+    // Strategy: Remove the '•' character, place cursor at that index.
+    
+    let finalTextToInsert = replacementTemplate;
+    let jumpOffset = replacementTemplate.length; // Default: jump to end
+    
+    if (firstPlaceholderIndex !== -1) {
+        // Remove the first •
+        finalTextToInsert = replacementTemplate.replace('•', ''); 
+        jumpOffset = firstPlaceholderIndex;
     }
-    return s + `\\end{${type}}`;
+
+    // 3. Construct new text
+    const textBefore = fullText.slice(0, start);
+    const textAfter = fullText.slice(end);
+    
+    textInputArea.value = textBefore + finalTextToInsert + textAfter;
+    
+    // 4. Set Cursor Position
+    const newCursorPos = textBefore.length + jumpOffset;
+    textInputArea.setSelectionRange(newCursorPos, newCursorPos);
+    
+    // 5. Update Preview
+    updateLatexPreview();
+}
+
+function replaceWithStructure(rows, cols, type, start, end, fullText) {
+    let s = `\\begin{${type}}`;
+    // We put a placeholder • in the very first cell
+    for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+            if (i===0 && j===0) s += '•'; // Cursor target
+            else s += ' '; // Empty cells
+            
+            if (j < cols - 1) s += ' & ';
+        }
+        if (i < rows - 1) s += ' \\\\ ';
+    }
+    s += `\\end{${type}}`;
+    
+    performReplacement(start, end, fullText, s);
 }
 
 /* =========================================
-   2. TOUCH & ZOOM LOGIC
+   2. GESTURES & ZOOM (Stable)
    ========================================= */
 function onTouchStart(e) {
     if (e.target.closest('.toolbar') || e.target.closest('#text-input-modal') || e.target.closest('.math-box')) return;
@@ -290,7 +319,7 @@ function onTouchEnd(e) {
 function updateTransform() { canvasContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`; }
 
 /* =========================================
-   3. DRAWING
+   3. DRAWING & UTILS
    ========================================= */
 function startDrawing(x, y) {
     isDrawing = true; currentStroke = [{x, y}];
@@ -332,14 +361,11 @@ function startDrawingArrow(x, y) {
     allStrokes.push({ type: 'arrow', ref: line });
 }
 
-/* =========================================
-   4. UI UTILS
-   ========================================= */
 function toggleMode() { isMathMode = !isMathMode; updateModeUI(); }
 function updateModeUI() {
     modeStatus.textContent = isMathMode ? 'MODE: MATH' : 'MODE: TEXT';
     modeStatus.classList.toggle('active', isMathMode);
-    if(activeTextArea) textInputArea.placeholder = isMathMode ? "Math Mode (try 'vec', 'alpha')..." : "Text Mode";
+    if(activeTextArea) textInputArea.placeholder = isMathMode ? "Math Mode (try 'vec', '32mat')..." : "Text Mode";
 }
 
 function createMathBox(x, y, initialValue = '') {
@@ -385,11 +411,12 @@ function renderMathDisplay(el, latex) {
 function updateLatexPreview() {
     let mf = latexPreview.querySelector('math-field');
     if (!mf) { mf = document.createElement('math-field'); mf.readOnly = true; latexPreview.appendChild(mf); }
-    mf.value = textInputArea.value;
+    // Clean visible placeholders for preview
+    mf.value = textInputArea.value.replace(/•/g, ''); 
 }
 
 function finishTextInput() {
-    if (activeTextArea) renderMathDisplay(activeTextArea, textInputArea.value);
+    if (activeTextArea) renderMathDisplay(activeTextArea, textInputArea.value.replace(/•/g, ''));
     textInputModal.classList.remove('active'); activeTextArea = null;
 }
 
