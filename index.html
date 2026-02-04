@@ -2161,6 +2161,9 @@
         let lastSingleTouchX = 0, lastSingleTouchY = 0;
 
         document.addEventListener('touchstart', (e) => {
+            // Prevent interference with drawing tools
+            if (isDrawing || isDrawingArrow || currentTool !== 'pointer') return;
+
             // Single finger pan on canvas area (not on math boxes or controls)
             if (e.touches.length === 1) {
                 const target = e.target;
