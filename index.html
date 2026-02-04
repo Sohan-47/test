@@ -137,6 +137,21 @@
             /* No transition for instant, smooth pan/zoom on mobile */
         }
 
+        /* Optimization - promotes to GPU layer */
+        #zoom-wrapper {
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
+            /* Ensure pointer-events pass through wrapper to children if needed, 
+               but wrapper usually contains the content so auto is fine. 
+               Checking JS, zoom-wrapper wraps canvas-area. */
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+        }
+
         #canvas-area {
             width: 100%;
             min-height: 100vh;
@@ -1540,46 +1555,21 @@
 
                 // ERASER LOGIC FOR ARROWS (SVG)
                 if (currentTool === 'eraser') {
-                    // Check for elements under the eraser
-                    // temporarily pointer-events: auto for arrows to check collision? 
-                    // No, arrow-layer is pointer-events: none. We need to manually check distance to lines or use a geometric check.
-                    // Simple geometric check:
                     const eraserRadius = 15;
                     const arrows = arrowLayer.querySelectorAll('line');
                     arrows.forEach(line => {
-                        const x1 = parseFloat(line.getAttribute('x1'));
-                        const y1 = parseFloat(line.getAttribute('y1'));
-                        const x2 = parseFloat(line.getAttribute('x2'));
-                        const y2 = parseFloat(line.getAttribute('y2'));
-
-                        // Distance from point (curX, curY) to line segment (x1,y1)-(x2,y2)
-                        const A = curX - x1;
-                        const B = curY - y1;
-                        const C = x2 - x1;
-                        const D = y2 - y1;
-                        const dot = A * C + B * D;
-                        const len_sq = C * C + D * D;
+                        const x1 = parseFloat(line.getAttribute('x1')), y1 = parseFloat(line.getAttribute('y1'));
+                        const x2 = parseFloat(line.getAttribute('x2')), y2 = parseFloat(line.getAttribute('y2'));
+                        const A = curX - x1, B = curY - y1, C = x2 - x1, D = y2 - y1;
+                        const dot = A * C + B * D, len_sq = C * C + D * D;
                         let param = -1;
                         if (len_sq !== 0) param = dot / len_sq;
-
                         let xx, yy;
                         if (param < 0) { xx = x1; yy = y1; }
                         else if (param > 1) { xx = x2; yy = y2; }
                         else { xx = x1 + param * C; yy = y1 + param * D; }
-
-                        const dx = curX - xx;
-                        const dy = curY - yy;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-
-                        if (dist < eraserRadius) {
-                            line.remove();
-                            // Ideally add to undo stack as a "delete" action, but for now just deleting is fine or could track deletions.
-                            // To make undo restore it, we'd need a more complex stack. 
-                            // User asked for "undo doesnot clears arrows" - wait, he said "undo does NOT clears arrows".
-                            // Means he wants undo to remove arrows he DRAW? Or restore arrows he ERASED?
-                            // "Undo doesnot clears arrows" -> He drew an arrow, pressed undo, and it stayed.
-                            // So let's focus on successful history saving first.
-                        }
+                        const dx = curX - xx, dy = curY - yy;
+                        if (Math.sqrt(dx * dx + dy * dy) < eraserRadius) line.remove();
                     });
                 }
             } else if (currentTool === 'line') {
