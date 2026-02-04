@@ -1729,32 +1729,37 @@
                     const currentLine = lines[lines.length - 1];
 
                     for (const key of sortedShortcutKeys) {
-                        if (currentLine.endsWith(key)) {
+                        // FIX: Strip trailing braces (MathLive wraps multi-line content in \displaylines{...})
+                        // This allows 'int' to be detected even if the raw value ends with 'int}'
+                        const cleanLine = currentLine.replace(/\}+$/, '');
+
+                        if (cleanLine.endsWith(key)) {
                             // Boundary Check on currentLine (is suffix of word?)
                             if (/^[a-zA-Z]/.test(key)) {
-                                const prefix = currentLine.slice(0, currentLine.length - key.length);
+                                const prefix = cleanLine.slice(0, cleanLine.length - key.length);
                                 if (prefix.length > 0 && /[a-zA-Z]$/.test(prefix)) continue;
                                 // Simple Recursion Guard: If *immediate* prefix on this line is a single backslash, skip.
-                                // Note: We don't need to check for double backslash because they were removed by the split!
                                 if (prefix.endsWith('\\')) continue;
                             }
 
                             // Handler
                             const executeShortcut = () => {
                                 const latex = savedShortcuts[key];
-                                // Update: Calculate prefix relative to WHOLE value, but logically works same way
-                                const prefix = v.slice(0, v.length - key.length);
-                                mfe.setValue(prefix, { suppressChangeNotifications: true });
+                                // FIX: Use deleteBackward instead of setValue
+                                // This modifies only the text at the cursor, preventing it from "eating" the rest of the document
+                                for (let i = 0; i < key.length; i++) mfe.executeCommand('deleteBackward');
                                 mfe.executeCommand(['insert', latex]);
                             };
 
                             // Ambiguity Check
                             if (ambiguousKeys.has(key)) {
                                 shortcutTimer = setTimeout(() => {
-                                    // Re-fetch current line state to verify
+                                    // Re-fetch to verify
                                     const freshV = mfe.value;
                                     const freshLines = freshV.split('\\\\');
-                                    const freshCurrent = freshLines[freshLines.length - 1];
+                                    let freshCurrent = freshLines[freshLines.length - 1];
+                                    freshCurrent = freshCurrent.replace(/\}+$/, ''); // Strip braces here too
+
                                     if (freshCurrent.endsWith(key)) {
                                         executeShortcut();
                                     }
@@ -2129,6 +2134,9 @@
             }
         }, { passive: true });
 
+        // Optimized touchmove with requestAnimationFrame
+        let zoomRafId = null;
+
         document.addEventListener('touchmove', (e) => {
             // Single finger pan
             if (e.touches.length === 1 && singleFingerPan) {
@@ -2136,7 +2144,6 @@
                 const dy = e.touches[0].pageY - lastSingleTouchY;
                 panX = initialPanX + dx;
                 panY = initialPanY + dy;
-                applyTransform();
             }
 
             // Two finger pinch-zoom
@@ -2151,13 +2158,19 @@
                 const midY = (e.touches[0].pageY + e.touches[1].pageY) / 2;
 
                 // Adjust pan so content under fingers stays under fingers
-                // Formula: newPan = focalPoint - (focalPoint - initialPan) * (newZoom / initialZoom)
                 const zoomRatio = newZoom / initialZoomOnPinch;
                 panX = midX - (lastTouchMidX - initialPanX) * zoomRatio;
                 panY = midY - (lastTouchMidY - initialPanY) * zoomRatio;
 
                 currentZoom = newZoom;
-                applyTransform();
+            }
+
+            // Schedule render update
+            if (!zoomRafId && (singleFingerPan || initialPinchDistance)) {
+                zoomRafId = requestAnimationFrame(() => {
+                    applyTransform();
+                    zoomRafId = null;
+                });
             }
         }, { passive: true });
 
