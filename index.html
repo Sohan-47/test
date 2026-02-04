@@ -1704,26 +1704,34 @@
             const handle = document.createElement('div'); handle.className = 'box-handle'; container.appendChild(handle);
             const closeBtn = document.createElement('div'); closeBtn.className = 'close-box-btn'; closeBtn.innerHTML = '&times;'; closeBtn.onclick = () => { container.remove(); updateCanvasHeight(); }; container.appendChild(closeBtn);
             const mfe = new MathfieldElement(); container.appendChild(mfe); canvasArea.appendChild(container);
-            // On mobile: use our custom minimal QWERTY keyboard | On desktop: no virtual keyboard
+
+            // Universal Keyboard Policy
             mfe.mathVirtualKeyboardPolicy = isMobile ? 'auto' : 'manual';
             mfe.virtualKeyboardMode = isMobile ? 'onfocus' : 'off';
             mfe.value = initialValue;
-            // Force shortcuts to ALWAYS load to debug/fix mobile issue
-            mfe.inlineShortcuts = savedShortcuts;
-            console.log('Debug: Loaded shortcuts count:', Object.keys(savedShortcuts).length);
+
+            // DISABLE standard shortcuts to prevent conflicts - WE HANDLE EVERYTHING NOW
+            mfe.inlineShortcuts = {};
+
+            // DEBUG OVERLAY
+            const debugOverlay = document.createElement('div');
+            debugOverlay.style.cssText = 'position:absolute; bottom:-20px; right:0; font-size:10px; color:#aaa; font-family:monospace; pointer-events:none;';
+            debugOverlay.className = 'debug-buffer';
+            debugOverlay.textContent = 'Buffer: []';
+            container.appendChild(debugOverlay);
 
             mfe.addEventListener('input', () => {
                 const v = mfe.value;
 
-                // Matrix/determinant shortcuts (32mat, 23det etc.)
+                // Matrix/determinant shortcuts
                 const mm = v.match(/([1-9])([1-9])mat$/);
                 const dm = v.match(/([1-9])([1-9])det$/);
                 if (mm) { for (let i = 0; i < 5; i++) mfe.executeCommand('deleteBackward'); mfe.executeCommand(['insert', generateStructure(parseInt(mm[1]), parseInt(mm[2]), 'pmatrix')]); return; }
                 if (dm) { for (let i = 0; i < 5; i++) mfe.executeCommand('deleteBackward'); mfe.executeCommand(['insert', generateStructure(parseInt(dm[1]), parseInt(dm[2]), 'vmatrix')]); return; }
 
-                // MANUAL SHORTCUT ENGINE FOR MOBILE (Robust Diff + Buffer)
-                if (isMobile && sortedShortcutKeys) {
-                    // Cancel any pending ambiguous match
+                // UNIVERSAL SHORTCUT ENGINE (Robust Diff + Buffer)
+                if (sortedShortcutKeys) {
+                    // Cancel ambiguous match
                     if (shortcutTimer) { clearTimeout(shortcutTimer); shortcutTimer = null; }
 
                     // Initialize state
@@ -1731,55 +1739,62 @@
                     if (!mfe._keyBuffer) mfe._keyBuffer = '';
                     if (!mfe._lastInputTime) mfe._lastInputTime = 0;
 
-                    // 1. ROBUST DIFF LOGIC: Detect exactly what changed
-                    const cleanV = v.replace(/\\}+$/, '');
-                    const cleanPrev = mfe._prevValue.replace(/\\}+$/, '');
-                    
+                    // 1. ROBUST DIFF LOGIC
+                    let cleanV = v.replace(/\\}+$/, ''); // Strip potential wrappers
+                    let cleanPrev = mfe._prevValue.replace(/\\}+$/, '');
+
+                    // Edge case: if value is literally equal (cursor move?), do nothing (handled by selection-change)
+
                     let charTyped = null;
                     let isDeletion = false;
 
-                    // Check for single character insertion
                     if (cleanV.length === cleanPrev.length + 1) {
+                        // Check prefix match
+                        // e.g. Prev: "ab", V: "abc" -> c
+                        // e.g. Prev: "a", V: "ba" -> Diff?
+                        // Find first difference
                         let i = 0;
                         while (i < cleanPrev.length && cleanPrev[i] === cleanV[i]) i++;
-                        if (cleanPrev.slice(i) === cleanV.slice(i + 1)) {
+                        // If prev matches V prefix up to length, then appended char is V[i]
+                        if (i === cleanPrev.length && cleanV.startsWith(cleanPrev)) {
                             charTyped = cleanV[i];
                         }
-                    } 
+                    }
                     else if (cleanV.length === cleanPrev.length - 1) {
-                         isDeletion = true; 
+                        isDeletion = true;
                     }
-                    
-                    // Update Buffer
+
+                    // Buffer Update
                     if (charTyped) {
-                         mfe._keyBuffer += charTyped;
-                         console.log(`[BUFFER] Typed: "${charTyped}", State: "${mfe._keyBuffer}"`);
+                        mfe._keyBuffer += charTyped;
                     } else if (isDeletion) {
-                         mfe._keyBuffer = mfe._keyBuffer.slice(0, -1);
-                         console.log(`[BUFFER] Backspace. State: "${mfe._keyBuffer}"`);
+                        mfe._keyBuffer = mfe._keyBuffer.slice(0, -1);
                     } else if (cleanV !== cleanPrev) {
-                         mfe._keyBuffer = ''; 
-                         console.log(`[BUFFER] Complex change. Reset.`);
+                        mfe._keyBuffer = '';
                     }
+
+                    // Update UI
+                    debugOverlay.innerText = `Buf: [${mfe._keyBuffer}]`;
+                    debugOverlay.style.color = mfe._keyBuffer ? '#4da6ff' : '#aaa';
 
                     // Update tracking
                     mfe._prevValue = v;
                     mfe._lastInputTime = Date.now();
 
                     // 2. CHECK SHORTCUTS
-                    const now = Date.now();
                     for (const key of sortedShortcutKeys) {
-                        if (mfe._keyBuffer && mfe._keyBuffer.endsWith(key) && !mfe._keyBuffer.endsWith('\\' + key)) {
-                            console.log(`[DEBUG] MATCH: Key="${key}" Buffer="${mfe._keyBuffer}"`);
+                        if (mfe._keyBuffer && mfe._keyBuffer.endsWith(key) && !mfe._keyBuffer.endsWith('\\\\' + key)) {
+                            // Boundary check: Word boundary
                             const prefix = mfe._keyBuffer.slice(0, -key.length);
                             if (prefix.length > 0 && /[a-zA-Z]$/.test(prefix)) continue;
 
                             const executeShortcut = () => {
-                                console.log(`[DEBUG] EXECUTING: ${key}`);
                                 const latex = savedShortcuts[key];
                                 for (let i = 0; i < key.length; i++) mfe.executeCommand('deleteBackward');
                                 mfe.executeCommand(['insert', latex]);
-                                mfe._keyBuffer = ''; 
+                                mfe._keyBuffer = '';
+                                debugOverlay.innerText = 'Buf: [Executed]';
+                                debugOverlay.style.color = '#0f0';
                             };
 
                             if (ambiguousKeys.has(key)) {
@@ -1792,18 +1807,22 @@
                     }
                 }
             });
-            // 3. SELECTION MONITOR: Clear buffer on manual cursor moves
+
+            // 3. SELECTION MONITOR
             mfe.addEventListener('selection-change', () => {
                 const timeSinceInput = Date.now() - (mfe._lastInputTime || 0);
                 if (timeSinceInput > 100) {
                     mfe._keyBuffer = '';
+                    if (debugOverlay) debugOverlay.innerText = 'Buf: []';
                 }
             });
+
             setupDrag(handle, container); attachKeyHandlers(mfe);
-            mfe.onfocus = () => container.classList.add('focused');
+            mfe.onfocus = () => { container.classList.add('focused'); };
             mfe.onblur = () => container.classList.remove('focused');
             setTimeout(() => { if (!initialValue) mfe.focus(); updateCanvasHeight(); triggerAutoSave(); }, 50);
         }
+
 
         function setupDrag(handle, container) {
             let drg = false; let sx, sy, il, it;
