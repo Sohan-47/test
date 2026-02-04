@@ -1610,7 +1610,7 @@
             img.src = data;
         }
 
-        const toggleMode = () => {
+        const toggleDocumentMode = () => {
             editorMode = editorMode === 'infinite' ? 'document' : 'infinite';
             const btnText = editorMode === 'infinite' ? 'Document Mode' : 'Infinite Canvas';
 
@@ -1639,9 +1639,9 @@
             }
         };
 
-        document.getElementById('toggle-mode-btn').onclick = toggleMode;
+        document.getElementById('toggle-mode-btn').onclick = toggleDocumentMode;
         const mobToggleBtn = document.getElementById('mobile-toggle-mode-btn');
-        if (mobToggleBtn) mobToggleBtn.onclick = toggleMode;
+        if (mobToggleBtn) mobToggleBtn.onclick = toggleDocumentMode;
 
         /* --- UNIFIED MOUSE INTERACTION --- */
         drawSurface.addEventListener('mousedown', (e) => {
