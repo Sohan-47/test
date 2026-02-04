@@ -1721,60 +1721,82 @@
                 if (mm) { for (let i = 0; i < 5; i++) mfe.executeCommand('deleteBackward'); mfe.executeCommand(['insert', generateStructure(parseInt(mm[1]), parseInt(mm[2]), 'pmatrix')]); return; }
                 if (dm) { for (let i = 0; i < 5; i++) mfe.executeCommand('deleteBackward'); mfe.executeCommand(['insert', generateStructure(parseInt(dm[1]), parseInt(dm[2]), 'vmatrix')]); return; }
 
-                // MANUAL SHORTCUT ENGINE FOR MOBILE (Line-Split Strategy)
-                // Fixes "Line 2" bug by treating every line as a fresh start.
+                // MANUAL SHORTCUT ENGINE FOR MOBILE (Robust Diff + Buffer)
                 if (isMobile && sortedShortcutKeys) {
                     // Cancel any pending ambiguous match
                     if (shortcutTimer) { clearTimeout(shortcutTimer); shortcutTimer = null; }
 
-                    // Strategy: Split by newline (\\) and only check the LAST line.
-                    // This strips previous context (newlines, old commands) so `int` on line 2 looks just like `int` on line 1.
-                    const lines = v.split('\\\\');
-                    const currentLine = lines[lines.length - 1];
+                    // Initialize state
+                    if (mfe._prevValue === undefined) mfe._prevValue = '';
+                    if (!mfe._keyBuffer) mfe._keyBuffer = '';
+                    if (!mfe._lastInputTime) mfe._lastInputTime = 0;
 
+                    // 1. ROBUST DIFF LOGIC: Detect exactly what changed
+                    const cleanV = v.replace(/\\}+$/, '');
+                    const cleanPrev = mfe._prevValue.replace(/\\}+$/, '');
+                    
+                    let charTyped = null;
+                    let isDeletion = false;
+
+                    // Check for single character insertion
+                    if (cleanV.length === cleanPrev.length + 1) {
+                        let i = 0;
+                        while (i < cleanPrev.length && cleanPrev[i] === cleanV[i]) i++;
+                        if (cleanPrev.slice(i) === cleanV.slice(i + 1)) {
+                            charTyped = cleanV[i];
+                        }
+                    } 
+                    else if (cleanV.length === cleanPrev.length - 1) {
+                         isDeletion = true; 
+                    }
+                    
+                    // Update Buffer
+                    if (charTyped) {
+                         mfe._keyBuffer += charTyped;
+                         console.log(`[BUFFER] Typed: "${charTyped}", State: "${mfe._keyBuffer}"`);
+                    } else if (isDeletion) {
+                         mfe._keyBuffer = mfe._keyBuffer.slice(0, -1);
+                         console.log(`[BUFFER] Backspace. State: "${mfe._keyBuffer}"`);
+                    } else if (cleanV !== cleanPrev) {
+                         mfe._keyBuffer = ''; 
+                         console.log(`[BUFFER] Complex change. Reset.`);
+                    }
+
+                    // Update tracking
+                    mfe._prevValue = v;
+                    mfe._lastInputTime = Date.now();
+
+                    // 2. CHECK SHORTCUTS
+                    const now = Date.now();
                     for (const key of sortedShortcutKeys) {
-                        // FIX: Strip trailing braces (MathLive wraps multi-line content in \displaylines{...})
-                        // This allows 'int' to be detected even if the raw value ends with 'int}'
-                        const cleanLine = currentLine.replace(/\}+$/, '');
+                        if (mfe._keyBuffer && mfe._keyBuffer.endsWith(key) && !mfe._keyBuffer.endsWith('\\' + key)) {
+                            console.log(`[DEBUG] MATCH: Key="${key}" Buffer="${mfe._keyBuffer}"`);
+                            const prefix = mfe._keyBuffer.slice(0, -key.length);
+                            if (prefix.length > 0 && /[a-zA-Z]$/.test(prefix)) continue;
 
-                        if (cleanLine.endsWith(key)) {
-                            // Boundary Check on currentLine (is suffix of word?)
-                            if (/^[a-zA-Z]/.test(key)) {
-                                const prefix = cleanLine.slice(0, cleanLine.length - key.length);
-                                if (prefix.length > 0 && /[a-zA-Z]$/.test(prefix)) continue;
-                                // Simple Recursion Guard: If *immediate* prefix on this line is a single backslash, skip.
-                                if (prefix.endsWith('\\')) continue;
-                            }
-
-                            // Handler
                             const executeShortcut = () => {
+                                console.log(`[DEBUG] EXECUTING: ${key}`);
                                 const latex = savedShortcuts[key];
-                                // FIX: Use deleteBackward instead of setValue
-                                // This modifies only the text at the cursor, preventing it from "eating" the rest of the document
                                 for (let i = 0; i < key.length; i++) mfe.executeCommand('deleteBackward');
                                 mfe.executeCommand(['insert', latex]);
+                                mfe._keyBuffer = ''; 
                             };
 
-                            // Ambiguity Check
                             if (ambiguousKeys.has(key)) {
-                                shortcutTimer = setTimeout(() => {
-                                    // Re-fetch to verify
-                                    const freshV = mfe.value;
-                                    const freshLines = freshV.split('\\\\');
-                                    let freshCurrent = freshLines[freshLines.length - 1];
-                                    freshCurrent = freshCurrent.replace(/\}+$/, ''); // Strip braces here too
-
-                                    if (freshCurrent.endsWith(key)) {
-                                        executeShortcut();
-                                    }
-                                    shortcutTimer = null;
-                                }, 300);
+                                shortcutTimer = setTimeout(() => executeShortcut(), 300);
                             } else {
                                 executeShortcut();
                             }
                             return;
                         }
                     }
+                }
+            });
+            // 3. SELECTION MONITOR: Clear buffer on manual cursor moves
+            mfe.addEventListener('selection-change', () => {
+                const timeSinceInput = Date.now() - (mfe._lastInputTime || 0);
+                if (timeSinceInput > 100) {
+                    mfe._keyBuffer = '';
                 }
             });
             setupDrag(handle, container); attachKeyHandlers(mfe);
