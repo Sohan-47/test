@@ -2110,7 +2110,12 @@
         /* --- GLOBAL DOUBLE CLICK --- */
         window.addEventListener('dblclick', (e) => {
             if (e.target.closest('.controls') || e.target.closest('.sidebar') || e.target.closest('#help-btn') || e.target.closest('.math-box') || e.target.closest('math-field') || e.target.closest('.ML__keyboard')) return;
-            createMathBox(e.pageX, e.pageY);
+
+            // Fix offset: Convert screen coordinates to canvas coordinates (inverse transform)
+            const x = (e.pageX - panX) / currentZoom;
+            const y = (e.pageY - panY) / currentZoom;
+
+            createMathBox(x, y);
         });
 
         document.getElementById('clear-btn').onclick = clearEditor;
