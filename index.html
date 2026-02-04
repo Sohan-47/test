@@ -1739,43 +1739,51 @@
                     if (!mfe._keyBuffer) mfe._keyBuffer = '';
                     if (!mfe._lastInputTime) mfe._lastInputTime = 0;
 
-                    // 1. ROBUST DIFF LOGIC
-                    let cleanV = v.replace(/\\}+$/, ''); // Strip potential wrappers
-                    let cleanPrev = mfe._prevValue.replace(/\\}+$/, '');
+                    const prev = mfe._prevValue;
 
-                    // Edge case: if value is literally equal (cursor move?), do nothing (handled by selection-change)
+                    // 1. ROBUST DIFF LOGIC (Prefix/Suffix Analysis)
+                    // We simply compare v and prev to find what changed in the *middle*.
+                    // This ignores whether the string ends with '}' or ')}' or whatever.
+
+                    let prefixLen = 0;
+                    while (prefixLen < prev.length && prefixLen < v.length && prev[prefixLen] === v[prefixLen]) {
+                        prefixLen++;
+                    }
+
+                    let suffixLen = 0;
+                    while (suffixLen < (prev.length - prefixLen) && suffixLen < (v.length - prefixLen) &&
+                        prev[prev.length - 1 - suffixLen] === v[v.length - 1 - suffixLen]) {
+                        suffixLen++;
+                    }
+
+                    const inserted = v.slice(prefixLen, v.length - suffixLen);
+                    const deleted = prev.slice(prefixLen, prev.length - suffixLen);
 
                     let charTyped = null;
-                    let isDeletion = false;
 
-                    if (cleanV.length === cleanPrev.length + 1) {
-                        // Check prefix match
-                        // e.g. Prev: "ab", V: "abc" -> c
-                        // e.g. Prev: "a", V: "ba" -> Diff?
-                        // Find first difference
-                        let i = 0;
-                        while (i < cleanPrev.length && cleanPrev[i] === cleanV[i]) i++;
-                        // If prev matches V prefix up to length, then appended char is V[i]
-                        if (i === cleanPrev.length && cleanV.startsWith(cleanPrev)) {
-                            charTyped = cleanV[i];
-                        }
-                    }
-                    else if (cleanV.length === cleanPrev.length - 1) {
-                        isDeletion = true;
+                    if (inserted.length === 1 && deleted.length === 0) {
+                        // SINGLE CHARACTER TYPED
+                        charTyped = inserted;
                     }
 
                     // Buffer Update
                     if (charTyped) {
                         mfe._keyBuffer += charTyped;
-                    } else if (isDeletion) {
+                    } else if (deleted.length === 1 && inserted.length === 0) {
+                        // Backspace
                         mfe._keyBuffer = mfe._keyBuffer.slice(0, -1);
-                    } else if (cleanV !== cleanPrev) {
+                    } else if (inserted.length > 0 || deleted.length > 0) {
+                        // Complex change (paste, autocomplete, big delete) -> Reset
                         mfe._keyBuffer = '';
                     }
+
+                    // Edge Case: If absolutely nothing changed (cursor move?), do nothing.
+                    // (Selection-change listener handles cursor moves)
 
                     // Update UI
                     debugOverlay.innerText = `Buf: [${mfe._keyBuffer}]`;
                     debugOverlay.style.color = mfe._keyBuffer ? '#4da6ff' : '#aaa';
+                    if (mfe._keyBuffer === 'Executed') debugOverlay.style.color = '#0f0';
 
                     // Update tracking
                     mfe._prevValue = v;
@@ -1806,6 +1814,7 @@
                         }
                     }
                 }
+
             });
 
             // 3. SELECTION MONITOR
