@@ -2411,6 +2411,10 @@
             // Single finger pan
             if (e.touches.length === 1 && singleFingerPan) {
                 e.preventDefault(); // STOP NATIVE SCROLL
+
+                // Performance Comp (Same as zoom)
+                document.body.classList.add('is-zooming');
+
                 const dx = e.touches[0].pageX - lastSingleTouchX;
                 const dy = e.touches[0].pageY - lastSingleTouchY;
                 panX = initialPanX + dx;
