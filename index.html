@@ -992,6 +992,7 @@
             <h3>Actions</h3>
             <div class="drawer-actions">
                 <button id="mobile-new-box-btn" class="btn" style="background:var(--accent)">+ New Math Box</button>
+                <button id="mobile-toggle-mode-btn" class="btn" style="background:#2563eb">Document Mode</button>
                 <button id="mobile-undo-btn" class="btn" style="background:#444">Undo</button>
                 <button id="mobile-clear-btn" class="btn" style="background:#dc2626">Clear All</button>
             </div>
@@ -1609,22 +1610,38 @@
             img.src = data;
         }
 
-        document.getElementById('toggle-mode-btn').onclick = () => {
+        const toggleMode = () => {
             editorMode = editorMode === 'infinite' ? 'document' : 'infinite';
-            document.getElementById('toggle-mode-btn').textContent = editorMode === 'infinite' ? 'Document Mode' : 'Infinite Canvas';
+            const btnText = editorMode === 'infinite' ? 'Document Mode' : 'Infinite Canvas';
+
+            const deskBtn = document.getElementById('toggle-mode-btn');
+            if (deskBtn) deskBtn.textContent = btnText;
+
+            const mobBtn = document.getElementById('mobile-toggle-mode-btn');
+            if (mobBtn) mobBtn.textContent = btnText;
+
             resizeCanvas();
 
             // Center view if switching to document
             if (editorMode === 'document') {
-                // Reset zoom/pan to show the page centered
                 currentZoom = 0.8;
-                // Center the 1200px page in the window
                 panX = (window.innerWidth - 1200 * currentZoom) / 2;
                 panY = 50;
                 applyTransform();
             }
             showToast('Switched to ' + (editorMode === 'infinite' ? 'Infinite' : 'Document') + ' Mode');
+
+            // Close drawer if open (mobile)
+            const drawer = document.getElementById('mobile-drawer');
+            if (drawer && drawer.classList.contains('open')) {
+                drawer.classList.remove('open');
+                document.getElementById('mobile-drawer-overlay').classList.remove('open');
+            }
         };
+
+        document.getElementById('toggle-mode-btn').onclick = toggleMode;
+        const mobToggleBtn = document.getElementById('mobile-toggle-mode-btn');
+        if (mobToggleBtn) mobToggleBtn.onclick = toggleMode;
 
         /* --- UNIFIED MOUSE INTERACTION --- */
         drawSurface.addEventListener('mousedown', (e) => {
