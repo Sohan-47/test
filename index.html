@@ -1512,13 +1512,20 @@
         /* --- CANVAS MANAGEMENT --- */
         function resizeCanvas() {
             const data = drawingLayer.toDataURL();
-            drawingLayer.width = previewLayer.width = window.innerWidth;
-            drawingLayer.height = previewLayer.height = Math.max(window.innerHeight, document.documentElement.scrollHeight, 2500);
+            // Expand width to allow horizontal scrolling/drawing
+            const newWidth = Math.max(window.innerWidth, 5000);
+            const newHeight = Math.max(window.innerHeight, document.documentElement.scrollHeight, 5000);
 
-            // Fix dead zones: Ensure interaction layers match full height
-            canvasArea.style.height = drawingLayer.height + 'px';
-            drawSurface.style.height = drawingLayer.height + 'px';
-            arrowLayer.style.height = drawingLayer.height + 'px';
+            drawingLayer.width = previewLayer.width = newWidth;
+            drawingLayer.height = previewLayer.height = newHeight;
+
+            // Fix dead zones: Ensure interaction layers match full dimensions
+            canvasArea.style.width = newWidth + 'px';
+            canvasArea.style.height = newHeight + 'px';
+            drawSurface.style.width = newWidth + 'px';
+            drawSurface.style.height = newHeight + 'px';
+            arrowLayer.style.width = newWidth + 'px';
+            arrowLayer.style.height = newHeight + 'px';
 
             [dCtx, pCtx].forEach(c => {
                 c.lineCap = 'round'; c.lineJoin = 'round';
