@@ -1582,10 +1582,14 @@
 
         /* === TOUCH SUPPORT FOR MOBILE === */
 
-        // Helper to get touch coordinates
+        // Helper to get touch coordinates (Corrected for Zoom & Pan)
         function getTouchPos(e) {
             const touch = e.touches[0] || e.changedTouches[0];
-            return { x: touch.pageX, y: touch.pageY };
+            // Inverse transform: (Screen - Pan) / Zoom
+            return {
+                x: (touch.pageX - panX) / currentZoom,
+                y: (touch.pageY - panY) / currentZoom
+            };
         }
 
         // Touch handlers for drawing surface
@@ -1602,22 +1606,21 @@
             }
         }, { passive: false });
 
-        let rafId = null;
+        let drawRafId = null;
         drawSurface.addEventListener('touchmove', (e) => {
             if (!isDrawing) return;
             e.preventDefault();
-            const pos = getTouchPos(e);
 
-            // Pen/Eraser: Execute immediately for smooth continuous lines
-            if (currentTool === 'pen' || currentTool === 'eraser') {
-                dCtx.lineTo(pos.x, pos.y); dCtx.stroke();
-            }
-            // Shapes: Use RAF to prevent lag on high-refresh mobile screens
-            else {
-                if (rafId) cancelAnimationFrame(rafId);
-                rafId = requestAnimationFrame(() => {
-                    const curX = pos.x, curY = pos.y;
-                    if (currentTool === 'line') {
+            // Store event data for the RAF loop
+            const pos = getTouchPos(e);
+            const curX = pos.x;
+            const curY = pos.y;
+
+            if (!drawRafId) {
+                drawRafId = requestAnimationFrame(() => {
+                    if (currentTool === 'pen' || currentTool === 'eraser') {
+                        dCtx.lineTo(curX, curY); dCtx.stroke();
+                    } else if (currentTool === 'line') {
                         pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
                         pCtx.beginPath(); pCtx.moveTo(startX, startY); pCtx.lineTo(curX, curY); pCtx.stroke();
                     } else if (currentTool === 'circle') {
@@ -1629,6 +1632,7 @@
                         if (curveStep === 0) { pCtx.beginPath(); pCtx.moveTo(startX, startY); pCtx.lineTo(curX, curY); pCtx.stroke(); }
                         else { pCtx.beginPath(); pCtx.moveTo(curveStartX, curveStartY); pCtx.quadraticCurveTo(curX, curY, curveEndX, curveEndY); pCtx.stroke(); }
                     }
+                    drawRafId = null;
                 });
             }
         }, { passive: false });
