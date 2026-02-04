@@ -394,6 +394,19 @@
             display: none;
         }
 
+        /* --- PERFORMANCE OPTIMIZATIONS --- */
+        body.is-zooming .page-boundary {
+            box-shadow: none !important;
+            border-color: #555 !important;
+            /* Simplified border instead */
+        }
+
+        body.is-zooming .math-box {
+            box-shadow: none !important;
+            border: 1px solid #4da6ff !important;
+            /* Keep visibility */
+        }
+
         .modal-overlay {
             display: none;
             position: fixed;
@@ -2360,6 +2373,10 @@
                     target.closest('#canvas-area') && !target.closest('.math-box') && !target.closest('math-field');
 
                 if (isCanvas) {
+                    // CRITICAL: Prevent native scroll so we can pan smoothly
+                    // Only prevent if we are definitely on the canvas
+                    // e.preventDefault(); // Moved to touchmove to allow clicking buttons
+
                     singleFingerPan = true;
                     lastSingleTouchX = e.touches[0].pageX;
                     lastSingleTouchY = e.touches[0].pageY;
@@ -2370,6 +2387,11 @@
 
             // Two finger pinch-zoom
             if (e.touches.length === 2) {
+                e.preventDefault(); // Always prevent default on pinch
+
+                // Performance Comp
+                if (!singleFingerPan) document.body.classList.add('is-zooming');
+
                 singleFingerPan = false; // Cancel single finger pan when second finger touches
                 const dx = e.touches[0].pageX - e.touches[1].pageX;
                 const dy = e.touches[0].pageY - e.touches[1].pageY;
@@ -2380,7 +2402,7 @@
                 lastTouchMidX = (e.touches[0].pageX + e.touches[1].pageX) / 2;
                 lastTouchMidY = (e.touches[0].pageY + e.touches[1].pageY) / 2;
             }
-        }, { passive: true });
+        }, { passive: false });
 
         // Optimized touchmove with requestAnimationFrame
         let zoomRafId = null;
@@ -2388,6 +2410,7 @@
         document.addEventListener('touchmove', (e) => {
             // Single finger pan
             if (e.touches.length === 1 && singleFingerPan) {
+                e.preventDefault(); // STOP NATIVE SCROLL
                 const dx = e.touches[0].pageX - lastSingleTouchX;
                 const dy = e.touches[0].pageY - lastSingleTouchY;
                 panX = initialPanX + dx;
@@ -2396,6 +2419,7 @@
 
             // Two finger pinch-zoom
             if (e.touches.length === 2 && initialPinchDistance) {
+                e.preventDefault(); // STOP NATIVE ZOOM
                 const dx = e.touches[0].pageX - e.touches[1].pageX;
                 const dy = e.touches[0].pageY - e.touches[1].pageY;
                 const currentDistance = Math.sqrt(dx * dx + dy * dy);
@@ -2420,12 +2444,41 @@
                     zoomRafId = null;
                 });
             }
-        }, { passive: true });
+        }, { passive: false });
 
         document.addEventListener('touchend', () => {
+            document.body.classList.remove('is-zooming');
             initialPinchDistance = null;
             singleFingerPan = false;
         });
+
+        // --- MOUSE WHEEL ZOOM & PAN ---
+        window.addEventListener('wheel', (e) => {
+            // Only intercept if we are interacting with the canvas/wrapper
+            if (e.target.closest('math-field') || e.target.closest('.sidebar') || e.target.closest('.controls') || e.target.closest('.drawer-section')) return;
+
+            e.preventDefault();
+
+            if (e.ctrlKey) {
+                // Zoom (Ctrl + Wheel)
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom * zoomFactor));
+
+                // Focal point logic (Zoom towards mouse)
+                // standard formula: pan = mouse - (mouse - oldPan) * (newZoom / oldZoom)
+                const zoomRatio = newZoom / currentZoom;
+                panX = e.clientX - (e.clientX - panX) * zoomRatio;
+                panY = e.clientY - (e.clientY - panY) * zoomRatio;
+
+                currentZoom = newZoom;
+            } else {
+                // Pan (Wheel / Shift+Wheel)
+                panX -= e.deltaX;
+                panY -= e.deltaY;
+            }
+
+            applyTransform();
+        }, { passive: false });
 
         window.onkeydown = (e) => {
             if (e.key === 'F1') { e.preventDefault(); toggleHelp(); }
