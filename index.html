@@ -1164,18 +1164,18 @@
             window.mathVirtualKeyboard.layouts = [
                 {
                     label: 'ABC',
-                    id: 'default', // Name needed for switching
+                    id: 'mobile-default', // Name needed for switching
                     tooltip: 'Letters',
                     rows: [
                         ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
                         ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
                         [
-                            { class: 'action', label: '⇧', command: ['switchKeyboard', 'shift'] }, // Try explicit shift if supported or just shift layer
+                            { class: 'action', label: '⇧', command: ['switchKeyboard', 'mobile-shift'] }, // Try explicit shift if supported or just shift layer
                             'z', 'x', 'c', 'v', 'b', 'n', 'm',
                             { class: 'action', label: '⌫', command: 'deleteBackward' }
                         ],
                         [
-                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'symbols'] },
+                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'mobile-symbols'] },
                             { latex: ',' },
                             // Removed emoji key to fit spacebar
                             { class: 'action', label: ' ', latex: '\\,', width: 5 },
@@ -1186,18 +1186,18 @@
                 },
                 {
                     label: 'Shift',
-                    id: 'shift', // Shifted layer
+                    id: 'mobile-shift', // Shifted layer
                     tooltip: 'Letters (Caps)',
                     rows: [
                         ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
                         ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
                         [
-                            { class: 'action', label: '⇧', command: ['switchKeyboard', 'default'], style: 'background: #4da6ff; color: white;' }, // Toggle back
+                            { class: 'action', label: '⇧', command: ['switchKeyboard', 'mobile-default'], style: 'background: #4da6ff; color: white;' }, // Toggle back
                             'Z', 'X', 'C', 'V', 'B', 'N', 'M',
                             { class: 'action', label: '⌫', command: 'deleteBackward' }
                         ],
                         [
-                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'symbols'] },
+                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'mobile-symbols'] },
                             { latex: ',' },
                             { class: 'action', label: ' ', latex: '\\,', width: 5 },
                             { latex: '.' },
@@ -1207,7 +1207,7 @@
                 },
                 {
                     label: '?123',
-                    id: 'symbols', // Name needed for switching
+                    id: 'mobile-symbols', // Name needed for switching
                     tooltip: 'Numbers & Symbols',
                     rows: [
                         ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
@@ -1216,12 +1216,12 @@
                             { latex: '-' }, { latex: '+' }, { latex: '(' }, { latex: ')' }, { latex: '/' }
                         ],
                         [
-                            { class: 'action', label: '=\\<', width: 1.5, command: ['switchKeyboard', 'symbols2'] },
+                            { class: 'action', label: '=\\<', width: 1.5, command: ['switchKeyboard', 'mobile-symbols2'] },
                             { latex: '*' }, { latex: '"' }, { latex: "'" }, { latex: ':' }, { latex: ';' }, { latex: '!' }, { latex: '?' },
                             { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' }
                         ],
                         [
-                            { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboard', 'default'] },
+                            { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboard', 'mobile-default'] },
                             { latex: ',' },
                             { class: 'action keycap-smile', label: '☺', width: 1.0, command: ['insert', '\\text{:-)}'] },
                             { class: 'action', label: ' ', latex: '\\,', width: 4 },
@@ -1232,7 +1232,7 @@
                 },
                 {
                     label: '=\\<',
-                    id: 'symbols2', // Name needed for switching
+                    id: 'mobile-symbols2', // Name needed for switching
                     tooltip: 'Advanced Symbols',
                     rows: [
                         [
@@ -1244,7 +1244,7 @@
                             { latex: '^{\\circ}' }, { latex: '=' }, { latex: '\\{' }, { latex: '\\}' }, { latex: '\\backslash' }
                         ],
                         [
-                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'symbols'] },
+                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'mobile-symbols'] },
                             { latex: '\\%' }, { latex: '\\copyright' }, { latex: '\\text{\\textcircled{R}}' }, { latex: '\\text{TM}' }, { latex: '\\checkmark' },
                             { latex: '[' }, { latex: ']' },
                             { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' }
