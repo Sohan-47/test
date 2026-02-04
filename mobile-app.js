@@ -111,6 +111,13 @@ function initCanvas() {
 }
 
 function setupEventListeners() {
+    // 1. DISABLE VIRTUAL KEYBOARD INTERFERENCE
+    // This stops GBoard/iOS from trying to "predict" your math
+    textInputArea.setAttribute('autocomplete', 'off');
+    textInputArea.setAttribute('autocorrect', 'off');
+    textInputArea.setAttribute('autocapitalize', 'off');
+    textInputArea.setAttribute('spellcheck', 'false');
+
     modeStatus.addEventListener('click', toggleMode);
     ['pointer', 'pen', 'line', 'circle', 'curve', 'eraser', 'arrow'].forEach(t => {
         const btn = document.getElementById('tool-' + t);
@@ -123,7 +130,7 @@ function setupEventListeners() {
     
     document.getElementById('text-input-done').addEventListener('click', finishTextInput);
     
-    // THE ENGINE
+    // THE SMART ENGINE LISTENER
     textInputArea.addEventListener('input', handleSmartEngine);
     
     // Gestures
@@ -133,6 +140,10 @@ function setupEventListeners() {
     
     document.getElementById('btn-help').addEventListener('click', () => helpModal.classList.add('active'));
     document.getElementById('help-close').addEventListener('click', () => helpModal.classList.remove('active'));
+    document.getElementById('btn-export-able').addEventListener('click', exportABLE);
+    document.getElementById('btn-import-able').addEventListener('click', () => document.getElementById('file-input').click());
+    document.getElementById('btn-export-pdf').addEventListener('click', exportToPDF);
+    document.getElementById('file-input').addEventListener('change', importABLE);
 }
 
 /* =========================================
@@ -147,7 +158,7 @@ function handleSmartEngine(e) {
     const textBefore = text.slice(0, cursor);
     
     // Capture the word immediately ending at cursor
-    // e.g., "grad" or "vec" or "32mat"
+    // This finds "grad" or "vec" or "32mat"
     const match = textBefore.match(/([a-zA-Z0-9^]+)$/);
 
     if (match) {
@@ -171,44 +182,52 @@ function handleSmartEngine(e) {
             const template = shortcuts[word];
             
             // CONTEXT CHECK: Is this an accent/wrapper? (e.g. \vec{#@})
-            // And is there something to wrap?
+            // And is there something immediately before it to wrap?
             if (template.includes('#@')) {
-                const textPreWord = textBefore.slice(0, wordStart).trimEnd();
+                // Look at text BEFORE the current word (stripped of trailing spaces from the slice)
+                const textPreWord = textBefore.slice(0, wordStart);
                 
                 // Regex to find the "Atom" before the current word.
-                // 1. Matches LaTeX command: \nabla, \alpha
-                // 2. Matches single char: x, y, 1
+                // It looks for EITHER a latex command (\nabla) OR a single char (x)
+                // It specifically checks the END of textPreWord
                 const atomRegex = /(\\[a-zA-Z]+|[a-zA-Z0-9])$/;
                 const atomMatch = textPreWord.match(atomRegex);
 
+                // Only wrap if the atom is IMMEDIATE (no space in between)
+                // If user types "x vec", textPreWord ends in space -> no match -> no wrap
+                // If user types "xvec", textPreWord ends in "x" -> match -> wrap
                 if (atomMatch) {
                     // WRAPPING MODE
-                    // e.g. Input: "\nabla vec" -> Match "vec" -> Atom "\nabla"
-                    // Output: "\vec{\nabla}"
+                    // e.g. Input: "gradvec" -> textBefore is "...\nablavec"
+                    // Match "vec" -> wordStart is at 'v'
+                    // textPreWord is "...\nabla"
+                    // atomMatch finds "\nabla"
+                    
                     const atom = atomMatch[0]; // e.g. \nabla
                     const atomStart = atomMatch.index;
                     
-                    // Replace the atom AND the shortcut with the wrapped version
-                    // template is "\vec{#@}" -> result "\vec{\nabla}"
+                    // Replace the template's placeholder with the atom
+                    // template: "\vec{#@}" -> "\vec{\nabla}"
                     const wrapped = template.replace('#@', atom);
                     
-                    // Note: We used textPreWord which might have stripped spaces. 
-                    // We need to be careful with indices.
-                    // Easier strategy: Replace from atomStart to cursor.
-                    const newTextBefore = textPreWord.slice(0, atomStart) + wrapped;
-                    const textAfter = text.slice(cursor);
+                    // Construct new text
+                    // 1. Everything before the Atom
+                    const prefix = textPreWord.slice(0, atomStart);
+                    // 2. The Wrapped result
+                    // 3. Everything after the cursor
+                    const suffix = text.slice(cursor);
                     
-                    textInputArea.value = newTextBefore + textAfter;
+                    textInputArea.value = prefix + wrapped + suffix;
                     
-                    // Cursor goes AFTER the wrapped expression (standard PC behavior for accents)
-                    const newPos = newTextBefore.length;
+                    // Move Cursor to END of wrapper (Standard PC behavior)
+                    const newPos = prefix.length + wrapped.length;
                     textInputArea.setSelectionRange(newPos, newPos);
                     updateLatexPreview();
                     return;
                 }
             }
 
-            // STANDARD REPLACEMENT (No wrapping, or nothing to wrap)
+            // STANDARD REPLACEMENT (No wrapping)
             performReplacement(wordStart, cursor, text, template);
         }
     }
@@ -469,7 +488,22 @@ function performUndo() {
 
 function clearEditor() { if(confirm("Clear?")) { document.querySelectorAll('.math-box').forEach(b=>b.remove()); allStrokes=[]; dCtx.clearRect(0,0,2500,2500); arrowLayer.innerHTML = '<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#4da6ff" /></marker></defs>'; } }
 function showToast(msg) { toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none',2000); }
-// Export functions are standard (same as previous)
+
+// EXPORT/IMPORT
+async function exportToPDF() {
+    showToast('Generating PDF...');
+    document.querySelectorAll('.toolbar, #bottom-controls, #mode-status, #brand-header').forEach(el => el.style.visibility = 'hidden');
+    try {
+        const canvas = await html2canvas(canvasArea, { backgroundColor: '#1e1e1e', scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width, canvas.height] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`ABLE_Mobile_${Date.now()}.pdf`);
+        showToast('PDF Exported!');
+    } catch (err) { console.error(err); showToast('Export Failed'); }
+    document.querySelectorAll('.toolbar, #bottom-controls, #mode-status, #brand-header').forEach(el => el.style.visibility = 'visible');
+}
+
 function exportABLE() { 
     const data = {
         format: 'ABLE_VECTOR', 
@@ -484,7 +518,8 @@ function exportABLE() {
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Note_Mobile_${Date.now()}.able`; a.click();
 }
-function importABLE(e) { /* (Logic same as previous valid build - simplified for length) */ 
+
+function importABLE(e) { 
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
