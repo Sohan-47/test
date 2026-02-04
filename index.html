@@ -1,60 +1,2187 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-visual">
     <title>ABLE - A Better LaTeX Editor</title>
+
+    <!-- MathLive CDN -->
+    <script src="https://unpkg.com/mathlive"></script>
+
+    <!-- PDF Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <style>
+        :root {
+            --grid-color: rgba(77, 166, 255, 0.15);
+            --accent: #4da6ff;
+            --bg: #1e1e1e;
+            --panel: #2d2d2d;
+        }
+
         body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: #e0e0e0;
             margin: 0;
-            padding: 0;
-            background: #1e1e1e;
+            min-height: 100vh;
+            width: 100vw;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+            cursor: crosshair;
+        }
+
+        /* --- BACKGROUND GRID LAYER --- */
+        #grid-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background-image: radial-gradient(var(--grid-color) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        /* --- UI COMPONENTS --- */
+        #brand-header,
+        #mode-status,
+        #help-btn,
+        .controls,
+        .sidebar,
+        .box-handle,
+        #arrow-layer {
+            user-select: none;
+        }
+
+        #brand-header {
+            position: fixed;
+            top: 20px;
+            left: 25px;
+            pointer-events: none;
+            z-index: 2000;
+        }
+
+        #brand-header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            color: var(--accent);
+            font-weight: 800;
+            letter-spacing: 2px;
+            line-height: 1.1;
+        }
+
+        #brand-header p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--panel);
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 3000;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.6);
+        }
+
+        .side-btn {
+            width: 44px;
+            height: 44px;
+            background: #383838;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            font-family: 'Segoe UI', sans-serif;
-            color: #e0e0e0;
+            transition: all 0.2s;
         }
-        .loader {
+
+        .side-btn:hover {
+            background: #444;
+            border-color: var(--accent);
+        }
+
+        .side-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(77, 166, 255, 0.5);
+        }
+
+        /* Zoom wrapper - contains all zoomable content */
+        #zoom-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            min-height: 100vh;
+            transform-origin: top left;
+            will-change: transform;
+            /* No transition for instant, smooth pan/zoom on mobile */
+        }
+
+        #canvas-area {
+            width: 100%;
+            min-height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #arrow-layer {
+            width: 100%;
+            min-height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        #drawing-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        #preview-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 6;
+            pointer-events: none;
+        }
+
+        #drawing-interaction-surface {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 7;
+            display: none;
+        }
+
+        #drawing-interaction-surface.active {
+            display: block;
+        }
+
+        .math-box {
+            position: absolute;
+            background: var(--panel);
+            border: 1px solid #444;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            min-width: 250px;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .math-box.focused {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(77, 166, 255, 0.25);
+        }
+
+        .box-handle {
+            height: 24px;
+            background: #383838;
+            border-top-left-radius: 9px;
+            border-top-right-radius: 9px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .box-handle::after {
+            content: "";
+            width: 35px;
+            height: 3px;
+            background: #555;
+            border-radius: 2px;
+        }
+
+        .close-box-btn {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 24px;
+            height: 24px;
+            background: #ff5f57;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 22px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 200;
+        }
+
+        .math-box:hover .close-box-btn {
+            opacity: 1;
+        }
+
+        math-field {
+            font-size: 26px;
+            padding: 12px 24px 18px 24px;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            min-width: 60px;
+            --caret-color: var(--accent);
+        }
+
+        #mode-status {
+            position: fixed;
+            top: 20px;
+            right: 90px;
+            background: #1e293b;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 12px;
+            color: #64748b;
+            border: 1px solid #334155;
+            z-index: 2500;
+        }
+
+        #mode-status.active {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 12px 20px;
+            font-size: 13px;
+            color: #999;
+            background: #181818;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 4000;
+        }
+
+        .key-hint {
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 5px;
+            color: #eee;
+            font-family: monospace;
+            border: 1px solid #444;
+            margin-right: 4px;
+        }
+
+        .instructions {
+            display: flex;
+            gap: 20px;
+        }
+
+        #help-btn {
+            position: fixed;
+            top: 20px;
+            right: 30px;
+            width: 38px;
+            height: 38px;
+            background: var(--panel);
+            border: 1px solid #444;
+            border-radius: 50%;
+            color: var(--accent);
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 2500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: 5px;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            z-index: 6000;
+            display: none;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 5000;
+            align-items: center;
+            justify-content: center;
+            cursor: default;
+        }
+
+        .help-content {
+            background: var(--bg);
+            width: 95%;
+            max-width: 1400px;
+            padding: 30px;
+            border-radius: 15px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+
+        .help-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+        }
+
+        .help-section h3 {
+            color: var(--accent);
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .shortcut-list {
+            list-style: none;
+            padding: 0;
+            font-size: 12px;
+        }
+
+        .shortcut-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            border-bottom: 1px solid #252525;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+        }
+
+        .shortcut-list li:hover {
+            background: rgba(77, 166, 255, 0.1);
+            color: #fff;
+            text-shadow: 0 0 10px var(--accent);
+        }
+
+        .symbol {
+            font-size: 1.15rem;
+            color: #fff;
+            font-family: serif;
+        }
+
+        .cmd {
+            font-family: monospace;
+            color: #7cb7ff;
+            background: #2a2a2a;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+
+            #grid-layer,
+            .sidebar,
+            #mode-status,
+            #help-btn,
+            .controls,
+            .modal-overlay,
+            #toast {
+                display: none !important;
+            }
+
+            .box-handle,
+            .close-box-btn {
+                display: none !important;
+            }
+
+            .math-box {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            math-field {
+                color: black !important;
+            }
+        }
+
+        /* === MOBILE RESPONSIVE STYLES === */
+        /* === MOBILE RESPONSIVE STYLES - COLLAPSIBLE DRAWER === */
+
+        /* Mobile menu toggle button - only visible on mobile */
+        #mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 44px;
+            height: 44px;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            z-index: 4000;
+            box-shadow: 0 4px 15px rgba(77, 166, 255, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Mobile zoom controls */
+        #mobile-zoom-controls {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 10px;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 3500;
+        }
+
+        #mobile-zoom-controls button {
+            width: 44px;
+            height: 44px;
+            background: var(--panel);
+            border: 1px solid #444;
+            border-radius: 10px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        #mobile-zoom-controls button:active {
+            background: var(--accent);
+        }
+
+        /* Mobile drawer overlay */
+        #mobile-drawer-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 3999;
+        }
+
+        /* Mobile drawer */
+        #mobile-drawer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 260px;
+            height: 100%;
+            background: var(--panel);
+            border-right: 1px solid #444;
+            z-index: 4001;
+            padding: 20px;
+            box-sizing: border-box;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+        }
+
+        #mobile-drawer.open {
+            left: 0;
+        }
+
+        #mobile-drawer h3 {
+            color: var(--accent);
+            font-size: 14px;
+            margin: 0 0 12px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 8px;
+        }
+
+        #mobile-drawer .drawer-section {
+            margin-bottom: 20px;
+        }
+
+        #mobile-drawer .drawer-tools {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        #mobile-drawer .drawer-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #383838;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #mobile-drawer .drawer-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        #mobile-drawer .drawer-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #mobile-drawer .drawer-actions .btn {
+            width: 100%;
+            margin: 0;
+        }
+
+        /* Mobile text input helper - collapsible floating widget */
+        #mobile-input-container {
+            display: none;
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 3500;
+        }
+
+        #mobile-input-toggle {
+            width: 44px;
+            height: 44px;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(77, 166, 255, 0.4);
+        }
+
+        #mobile-input-panel {
+            display: none;
+            position: absolute;
+            bottom: 54px;
+            right: 0;
+            width: 280px;
+            background: var(--panel);
+            border: 1px solid #444;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #mobile-input-panel.open {
+            display: block;
+        }
+
+        #mobile-input-panel input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background: #383838;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        #mobile-input-panel input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        #mobile-input-hint {
+            font-size: 11px;
+            color: #888;
+            margin-top: 8px;
             text-align: center;
         }
-        .loader h1 {
-            color: #4da6ff;
-            font-size: 2rem;
-            margin-bottom: 1rem;
+
+        @media (max-width: 768px) {
+            body {
+                cursor: default;
+            }
+
+            /* Prevent viewport shift when keyboard appears */
+            html,
+            body {
+                overscroll-behavior: none;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Hide brand header on mobile */
+            #brand-header {
+                display: none;
+            }
+
+            /* Hide original sidebar on mobile */
+            .sidebar {
+                display: none !important;
+            }
+
+            /* Hide original controls on mobile */
+            .controls {
+                display: none !important;
+            }
+
+            /* Show mobile menu button */
+            #mobile-menu-btn {
+                display: flex;
+            }
+
+            /* Show mobile drawer (hidden by default, slides in) */
+            #mobile-drawer {
+                display: block;
+            }
+
+            #mobile-drawer-overlay.open {
+                display: block;
+            }
+
+            /* Show mobile input container and zoom controls */
+            #mobile-input-container {
+                display: block;
+            }
+
+            #mobile-zoom-controls {
+                display: flex;
+            }
+
+            /* Reposition mode status and help to avoid hamburger */
+            #mode-status {
+                top: 10px;
+                left: 60px;
+                right: auto;
+                font-size: 10px;
+                padding: 5px 10px;
+            }
+
+            #help-btn {
+                top: 10px;
+                right: 10px;
+                width: 32px;
+                height: 32px;
+                font-size: 14px;
+            }
+
+            /* Hide drag handle on mobile for cleaner look */
+            /* Handle visible on mobile now */
+            .box-handle {
+                /* display: none; */
+            }
+
+            /* Close button visible on mobile now */
+            .close-box-btn {
+                /* display: none; */
+            }
+
+            /* Math boxes bigger on mobile */
+            .math-box {
+                min-width: 280px;
+                max-width: calc(100vw - 20px);
+                min-height: 60px;
+            }
+
+            math-field {
+                font-size: 24px;
+                padding: 14px 18px 18px 18px;
+                min-height: 50px;
+            }
+
+            /* Custom styling for MathLive virtual keyboard */
+            .ML__keyboard {
+                --keyboard-background: #1e1e1e !important;
+                --keycap-background: #2d2d2d !important;
+                --keycap-text: #e0e0e0 !important;
+                --keycap-background-active: #4da6ff !important;
+                z-index: 5000 !important;
+            }
+
+            .ML__keyboard .MLK__keycap {
+                background: #2d2d2d !important;
+                color: #e0e0e0 !important;
+                border: 1px solid #444 !important;
+                border-radius: 6px !important;
+                font-size: 18px !important;
+            }
+
+            .ML__keyboard .MLK__keycap:active,
+            .ML__keyboard .MLK__keycap.is-active {
+                background: var(--accent) !important;
+            }
+
+            /* Help modal mobile */
+            .help-content {
+                padding: 20px;
+                max-height: 85vh;
+            }
+
+            .help-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            /* Toast positioning for mobile */
+            #toast {
+                bottom: 80px;
+            }
         }
     </style>
 </head>
-<body>
-    <div class="loader">
+
+<body class="grid-bg">
+
+    <div id="grid-layer"></div>
+
+    <div id="brand-header">
         <h1>ABLE</h1>
-        <p>Loading...</p>
+        <p>A better LaTeX Editor</p>
     </div>
-    
+
+    <div id="mode-status" class="active">MODE: MATH</div>
+    <button id="help-btn" title="Help (F1)">?</button>
+    <div id="toast">Message</div>
+
+    <div class="sidebar">
+        <button id="tool-pointer" class="side-btn active" title="Pointer (Select Boxes)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+                <path d="M13 13l6 6" />
+            </svg>
+        </button>
+        <button id="tool-pen" class="side-btn" title="Pen (Scribble)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                <path d="M2 2l5 5" />
+                <path d="M11 22l2-2" />
+            </svg>
+        </button>
+        <button id="tool-line" class="side-btn" title="Straight Line">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="19" x2="19" y2="5" />
+            </svg>
+        </button>
+        <button id="tool-circle" class="side-btn" title="Circle / Ellipse">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9" />
+            </svg>
+        </button>
+        <button id="tool-curve" class="side-btn" title="Curved Line (MS Paint Style)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12c0-5 9-5 9 0s9 5 9 0" />
+            </svg>
+        </button>
+        <button id="tool-eraser" class="side-btn" title="Eraser (Rub drawings)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z" />
+                <path d="M17 17L7 7" />
+            </svg>
+        </button>
+        <button id="tool-arrow" class="side-btn" title="Draw Arrow">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="19" x2="19" y2="5" />
+                <polyline points="10 5 19 5 19 14" />
+            </svg>
+        </button>
+        <button id="tool-grid" class="side-btn active" title="Toggle Grid Visibility">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="3" y1="15" x2="21" y2="15" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+                <line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Zoomable content wrapper - only this zooms, UI stays fixed -->
+    <div id="zoom-wrapper">
+        <canvas id="drawing-layer"></canvas>
+        <canvas id="preview-layer"></canvas>
+        <div id="drawing-interaction-surface"></div>
+
+        <svg id="arrow-layer">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#4da6ff" />
+                </marker>
+            </defs>
+        </svg>
+
+        <div id="canvas-area"></div>
+    </div>
+
+    <div class="controls">
+        <div class="instructions">
+            <span><span class="key-hint">Dbl Click</span> New Box</span>
+            <span><span class="key-hint">Shift + Drag</span> Arrow</span>
+            <span><span class="key-hint">F1</span> Help Menu</span>
+        </div>
+        <div>
+            <button id="clear-btn" class="btn" style="background:#dc2626">Clear Editor</button>
+            <button id="undo-btn" class="btn" style="background:#444">Undo Action</button>
+            <button id="export-able-btn" class="btn" style="background:#059669">Export .able</button>
+            <button id="import-able-btn" class="btn" style="background:#7c3aed">Import .able</button>
+            <button id="export-btn" class="btn">Export PDF</button>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" accept=".able" style="display: none;">
+
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" aria-label="Open menu">☰</button>
+
+    <!-- Mobile Drawer Overlay -->
+    <div id="mobile-drawer-overlay"></div>
+
+    <!-- Mobile Drawer -->
+    <div id="mobile-drawer">
+        <div class="drawer-section">
+            <h3>Drawing Tools</h3>
+            <div class="drawer-tools">
+                <button class="drawer-btn active" data-tool="pointer" title="Pointer">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+                    </svg>
+                </button>
+                <button class="drawer-btn" data-tool="pen" title="Pen">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                    </svg>
+                </button>
+                <button class="drawer-btn" data-tool="line" title="Line">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="19" x2="19" y2="5" />
+                    </svg>
+                </button>
+                <button class="drawer-btn" data-tool="circle" title="Circle">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="9" />
+                    </svg>
+                </button>
+                <button class="drawer-btn" data-tool="curve" title="Curve">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12c0-5 9-5 9 0s9 5 9 0" />
+                    </svg>
+                </button>
+                <button class="drawer-btn" data-tool="eraser" title="Eraser">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z" />
+                    </svg>
+                </button>
+                <button class="drawer-btn" data-tool="arrow" title="Arrow">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="19" x2="19" y2="5" />
+                        <polyline points="10 5 19 5 19 14" />
+                    </svg>
+                </button>
+                <button class="drawer-btn" data-tool="grid" title="Grid">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <line x1="3" y1="9" x2="21" y2="9" />
+                        <line x1="9" y1="3" x2="9" y2="21" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="drawer-section">
+            <h3>Actions</h3>
+            <div class="drawer-actions">
+                <button id="mobile-new-box-btn" class="btn" style="background:var(--accent)">+ New Math Box</button>
+                <button id="mobile-undo-btn" class="btn" style="background:#444">Undo</button>
+                <button id="mobile-clear-btn" class="btn" style="background:#dc2626">Clear All</button>
+            </div>
+        </div>
+
+        <div class="drawer-section">
+            <h3>File</h3>
+            <div class="drawer-actions">
+                <button id="mobile-export-able-btn" class="btn" style="background:#059669">Export .able</button>
+                <button id="mobile-import-able-btn" class="btn" style="background:#7c3aed">Import .able</button>
+                <button id="mobile-export-pdf-btn" class="btn" style="background:var(--accent)">Export PDF</button>
+            </div>
+        </div>
+
+        <div class="drawer-section">
+            <h3>Mode</h3>
+            <div class="drawer-actions">
+                <button id="mobile-mode-btn" class="btn" style="background:#444">Toggle Math/Text</button>
+                <button id="mobile-help-btn" class="btn" style="background:#444">Show Help</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Zoom Controls -->
+    <div id="mobile-zoom-controls">
+        <button id="zoom-in-btn" title="Zoom In">+</button>
+        <button id="zoom-out-btn" title="Zoom Out">−</button>
+        <button id="zoom-reset-btn" title="Reset Zoom">⟲</button>
+    </div>
+
+    <!-- Using MathLive's custom minimal QWERTY keyboard instead of native keyboard proxy -->
+
+    <div id="help-modal" class="modal-overlay">
+        <div class="help-content">
+            <h2 style="text-align:center; color:#4da6ff; margin-bottom:30px; font-weight:800; letter-spacing:1px;">ABLE
+                COMPREHENSIVE SHORTCUT DIRECTORY</h2>
+            <div class="help-grid">
+                <!-- Section 1 -->
+                <div class="help-section">
+                    <h3>Canvas and storage</h3>
+                    <ul class="shortcut-list">
+                        <li><span>Create Box</span> <span class="cmd">Double Click</span></li>
+                        <li><span>Draw Arrow</span> <span class="cmd">Shift + Drag</span></li>
+                        <li><span>Export File</span> <span class="cmd">.able button</span></li>
+                        <li><span>Import File</span> <span class="cmd">.able button</span></li>
+                        <li><span>Mode Toggle</span> <span class="key-hint">Shift + Tab</span></li>
+                        <li><span>Undo Arrow</span> <span class="cmd">Ctrl + Z</span></li>
+                    </ul>
+                </div>
+                <!-- Section 2 -->
+                <div class="help-section">
+                    <h3>Calculus</h3>
+                    <ul class="shortcut-list">
+                        <li><span class="symbol">∫</span> <span class="cmd">int</span></li>
+                        <li><span class="symbol">∫_a^b</span> <span class="cmd">dint</span></li>
+                        <li><span class="symbol">∬ / ∭</span> <span class="cmd">iint / iiint</span></li>
+                        <li><span class="symbol">∮ / ∯ / ∰</span> <span class="cmd">oint / oiint / oiiint</span></li>
+                        <li><span class="symbol">∇ / ∂</span> <span class="cmd">grad / del</span></li>
+                        <li><span class="symbol">∑ / ∏</span> <span class="cmd">sum / prod</span></li>
+                        <li><span class="symbol">∞</span> <span class="cmd">ify</span></li>
+                    </ul>
+                </div>
+                <!-- Section 3 -->
+                <div class="help-section">
+                    <h3>Vectors</h3>
+                    <ul class="shortcut-list">
+                        <li><span class="symbol">v⃗</span> <span class="cmd">vec</span></li>
+                        <li><span class="symbol">û</span> <span class="cmd">hat</span></li>
+                        <li><span class="symbol">⋅</span> <span class="cmd">ast</span></li>
+                        <li><span class="symbol">×</span> <span class="cmd">times</span></li>
+                        <li><span class="symbol">‖v‖</span> <span class="cmd">||</span></li>
+                        <li><span class="symbol">v̅</span> <span class="cmd">bar</span></li>
+                    </ul>
+                </div>
+                <!-- Section 4 -->
+                <div class="help-section">
+                    <h3>Linear algebra</h3>
+                    <ul class="shortcut-list">
+                        <li><span class="symbol">[M×N] Matrix</span> <span class="cmd">mnmat</span></li>
+                        <li><span class="symbol">|M×N| Det</span> <span class="cmd">mndet</span></li>
+                        <li><span class="symbol">det(A)</span> <span class="cmd">det</span></li>
+                        <li><span class="symbol">Aᵀ Transpose</span> <span class="cmd">^T</span></li>
+                        <li><span class="symbol">⊕ / ⊗</span> <span class="cmd">bop / bot</span></li>
+                    </ul>
+                </div>
+                <!-- Section 5 -->
+                <div class="help-section">
+                    <h3>Set theory and logic</h3>
+                    <ul class="shortcut-list">
+                        <li><span class="symbol">∈ / ∉</span> <span class="cmd">in / notin</span></li>
+                        <li><span class="symbol">∴ / ∵</span> <span class="cmd">tf / bc</span></li>
+                        <li><span class="symbol">∀ / ∃</span> <span class="cmd">AA / EE</span></li>
+                        <li><span class="symbol">∧ / ∨</span> <span class="cmd">and / or</span></li>
+                        <li><span class="symbol">ℝ / ℤ / ℕ / ℂ</span> <span class="cmd">RR / ZZ / NN / CC</span></li>
+                    </ul>
+                </div>
+                <!-- Section 6 -->
+                <div class="help-section">
+                    <h3>Quantum physics</h3>
+                    <ul class="shortcut-list">
+                        <li><span class="symbol">⟨φ|</span> <span class="cmd">bra</span></li>
+                        <li><span class="symbol">|ψ⟩</span> <span class="cmd">ket</span></li>
+                        <li><span class="symbol">⟨φ|ψ⟩</span> <span class="cmd">braket</span></li>
+                        <li><span class="symbol">Ĥ / †</span> <span class="cmd">hatH / dag</span></li>
+                        <li><span class="symbol">ℏ / ℓ</span> <span class="cmd">hbar / ell</span></li>
+                    </ul>
+                </div>
+                <!-- Section 7 -->
+                <div class="help-section">
+                    <h3>Numpad structures</h3>
+                    <ul class="shortcut-list">
+                        <li><span class="symbol">∫ᵃᵇ</span> <span class="key-hint">Num 7</span></li>
+                        <li><span class="symbol">∑ⁿ</span> <span class="key-hint">Num 8</span></li>
+                        <li><span class="symbol">√x</span> <span class="key-hint">Num 9</span></li>
+                        <li><span class="symbol">lim</span> <span class="key-hint">Num 4</span></li>
+                        <li><span class="symbol">Matrix [Cycle]</span> <span class="key-hint">Num 5</span></li>
+                    </ul>
+                </div>
+                <!-- Section 8 -->
+                <div class="help-section">
+                    <h3>Styling, Decors and accents</h3>
+                    <ul class="shortcut-list">
+                        <li><span class="symbol">[Box]</span> <span class="cmd">box</span></li>
+                        <li><span class="symbol">Strike</span> <span class="cmd">can</span></li>
+                        <li><span class="symbol">Over/Under</span> <span class="cmd">obra / ubra</span></li>
+                        <li><span class="symbol">𝒞𝒶𝓁𝓁𝒾</span> <span class="cmd">mcal</span></li>
+                        <li><span class="symbol">Greek Letters</span> <span class="cmd">alpha, beta...</span></li>
+                        <li><span class="symbol">𝐁𝐨𝐥𝐝</span> <span class="cmd">mbf</span></li>
+                    </ul>
+                </div>
+                <!-- Section 9 -->
+                <div class="help-section">
+                    <h3>Geometry and arrows</h3>
+                    <ul class="shortcut-list">
+                        <li><span class="symbol">∠</span> <span class="cmd">ang</span></li>
+                        <li><span class="symbol">⊥ / ∥</span> <span class="cmd">perp / para</span></li>
+                        <li><span class="symbol">⇒ / ⇔</span> <span class="cmd">impl / iff</span></li>
+                        <li><span class="symbol">↑ / ↓ / ↔</span> <span class="cmd">up / dn / lr</span></li>
+                        <li><span class="symbol">↦</span> <span class="cmd">map</span></li>
+                    </ul>
+                </div>
+            </div>
+            <button class="close-help" onclick="toggleHelp()"
+                style="width:100%; margin-top:30px; padding:12px; background:var(--accent); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Close</button>
+        </div>
+    </div>
+
     <script>
-        // Detect device type
-        function isMobileDevice() {
-            // Check if touch-enabled
-            const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            
-            // Check screen size
-            const isSmallScreen = window.innerWidth <= 1024;
-            
-            // Check user agent for mobile indicators
-            const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-            const isMobileUA = mobileRegex.test(navigator.userAgent);
-            
-            // Mobile if: (touch AND small screen) OR mobile user agent
-            return (hasTouch && isSmallScreen) || isMobileUA;
+        // --- GLOBAL SELECTORS ---
+        const canvasArea = document.getElementById('canvas-area');
+        const arrowLayer = document.getElementById('arrow-layer');
+        const drawingLayer = document.getElementById('drawing-layer');
+        const previewLayer = document.getElementById('preview-layer');
+        const drawSurface = document.getElementById('drawing-interaction-surface');
+        const dCtx = drawingLayer.getContext('2d');
+        const pCtx = previewLayer.getContext('2d');
+        const statusEl = document.getElementById('mode-status');
+        const helpModal = document.getElementById('help-modal');
+        const toastEl = document.getElementById('toast');
+        const fileInput = document.getElementById('file-input');
+
+        // App State
+        let lastMatrixTap = 0;
+        let matrixSize = 0;
+        let isMathMode = true;
+        let historyStack = [];
+        const MAX_HISTORY_SIZE = 30; // Limit history to prevent memory leaks
+        let saveTimeout = null;
+        const AUTOSAVE_DELAY = 2000; // Debounce autosave by 2 seconds
+
+        // Input States
+        let isDrawing = false;
+        let isDrawingArrow = false;
+        let activeLine = null;
+        let startX, startY;
+        let currentTool = 'pointer';
+        let curveStep = 0;
+        let curveStartX, curveStartY, curveEndX, curveEndY;
+
+        /* --- VERBOSE SHORTCUT LOGIC - FULL LIST (MOVED TO TOP) --- */
+        const savedShortcuts = {
+            'alpha': '\\alpha', 'beta': '\\beta', 'gamma': '\\gamma', 'delta': '\\delta', 'epsilon': '\\epsilon',
+            'vepsilon': '\\varepsilon', 'zeta': '\\zeta', 'eta': '\\eta', 'theta': '\\theta', 'vtheta': '\\vartheta',
+            'iota': '\\iota', 'kappa': '\\kappa', 'lambda': '\\lambda', 'mu': '\\mu', 'nu': '\\nu', 'xi': '\\xi',
+            'pi': '\\pi', 'rho': '\\rho', 'vrho': '\\varrho', 'sigma': '\\sigma', 'tau': '\\tau', 'upsilon': '\\upsilon',
+            'phi': '\\phi', 'vphi': '\\varphi', 'chi': '\\chi', 'psi': '\\psi', 'omega': '\\omega',
+            'Gamma': '\\Gamma', 'Delta': '\\Delta', 'Theta': '\\Theta', 'Lambda': '\\Lambda', 'Xi': '\\Xi',
+            'Pi': '\\Pi', 'Sigma': '\\Sigma', 'Upsilon': '\\Upsilon', 'Phi': '\\Phi', 'Psi': '\\Psi', 'Omega': '\\Omega',
+            'ify': '\\infty', 'pm': '\\pm', 'grad': '\\nabla', 'del': '\\partial', 'xx': '\\times', 'ast': '\\cdot', 'times': '\\times',
+            'tf': '\\therefore', 'bc': '\\because', 'and': '\\land', 'or': '\\lor', 'not': '\\neg', 'eqv': '\\equiv',
+            'sim': '\\sim', 'approx': '\\approx', 'prop': '\\propto', 'LL': '\\ll', 'GG': '\\gg', 'AA': '\\forall', 'EE': '\\exists',
+            'bra': '\\bra{#@}', 'ket': '\\ket{#@}', 'braket': '\\braket{#@ | #@}', 'hatH': '\\hat{H}', 'dag': '\\dagger', 'hbar': '\\hbar', 'ell': '\\ell',
+            'ale': '\\aleph', 'bet': '\\beth', 'dal': '\\daleth', 'mscr': '\\mathscr{#@}', 'in': '\\in', 'notin': '\\notin', 'uu': '\\cup', 'nn': '\\cap',
+            'sub': '\\subset', 'sup': '\\supset', 'sube': '\\subseteq', 'supe': '\\supseteq', 'eset': '\\emptyset',
+            'RR': '\\mathbb{R}', 'ZZ': '\\mathbb{Z}', 'NN': '\\mathbb{N}', 'CC': '\\mathbb{C}', 'QQ': '\\mathbb{Q}',
+            'int': '\\int', 'dint': '\\int_{#@}^{#@}', 'iint': '\\iint', 'iiint': '\\iiint', 'oint': '\\oint', 'oiint': '\\oiint', 'oiiint': '\\oiiint',
+            'prod': '\\prod_{#@}^{#@}', 'sum': '\\sum_{#@}^{#@}', 'bcap': '\\bigcap', 'bcup': '\\bigcup', 'bop': '\\bigoplus', 'bot': '\\bigotimes',
+            'asin': '\\arcsin', 'acos': '\\arccos', 'atan': '\\arctan', 'sinh': '\\sinh', 'cosh': '\\cosh', 'log': '\\log_{#@}{#@}', 'ln': '\\ln{#@}',
+            'can': '\\cancel{#@}', 'box': '\\boxed{#@}', 'obra': '\\overbrace{#@}^{#@}', 'ubra': '\\underbrace{#@}_{#@}', 'ang': '\\angle', 'perp': '\\perp',
+            'para': '\\parallel', 'tri': '\\triangle', 'sq': '\\square', 'deg': '^\\circ', '||': '\\| #@ \\|', 'bar': '\\bar{#@}', 'vec': '\\vec{#@}',
+            'hat': '\\hat{#@}', 'dot': '\\dot{#@}', 'ddot': '\\ddot{#@}', 'dddot': '\\dddot{#@}', 'tilde': '\\tilde{#@}', '^T': '^{T}',
+            'impl': '\\implies', 'iff': '\\iff', 'ib': '\\impliedby', 'up': '\\uparrow', 'dn': '\\downarrow', 'lr': '\\leftrightarrow', 'map': '\\mapsto',
+            'har': '\\rightleftharpoons', 'mcal': '\\mathcal{#@}', 'mfr': '\\mathfrak{#@}', 'mtt': '\\mathtt{#@}', 'mbf': '\\mathbf{#@}', 'mit': '\\mathit{#@}'
+        };
+
+        // Improved mobile detection: Touch OR Small Screen
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1024;
+
+        /* === AUTHENTIC GBOARD REPLICA LAYOUT === */
+        if (isMobile && window.mathVirtualKeyboard) {
+            console.log("Mobile Gboard Layout Active");
+            window.mathVirtualKeyboard.layouts = [
+                {
+                    label: 'ABC',
+                    id: 'default', // Name needed for switching
+                    tooltip: 'Letters',
+                    rows: [
+                        ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+                        ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+                        [
+                            { class: 'action', label: '⇧', command: ['switchKeyboard', 'shift'] }, // Try explicit shift if supported or just shift layer
+                            'z', 'x', 'c', 'v', 'b', 'n', 'm',
+                            { class: 'action', label: '⌫', command: 'deleteBackward' }
+                        ],
+                        [
+                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'symbols'] },
+                            { latex: ',' },
+                            // Removed emoji key to fit spacebar
+                            { class: 'action', label: ' ', latex: '\\,', width: 5 },
+                            { latex: '.' },
+                            { class: 'action', label: '↵', latex: '\\\\', width: 1.5, style: 'background: #4da6ff; color: white; border-color: #4da6ff;' }
+                        ]
+                    ]
+                },
+                {
+                    label: 'Shift',
+                    id: 'shift', // Shifted layer
+                    tooltip: 'Letters (Caps)',
+                    rows: [
+                        ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+                        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+                        [
+                            { class: 'action', label: '⇧', command: ['switchKeyboard', 'default'], style: 'background: #4da6ff; color: white;' }, // Toggle back
+                            'Z', 'X', 'C', 'V', 'B', 'N', 'M',
+                            { class: 'action', label: '⌫', command: 'deleteBackward' }
+                        ],
+                        [
+                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'symbols'] },
+                            { latex: ',' },
+                            { class: 'action', label: ' ', latex: '\\,', width: 5 },
+                            { latex: '.' },
+                            { class: 'action', label: '↵', latex: '\\\\', width: 1.5, style: 'background: #4da6ff; color: white; border-color: #4da6ff;' }
+                        ]
+                    ]
+                },
+                {
+                    label: '?123',
+                    id: 'symbols', // Name needed for switching
+                    tooltip: 'Numbers & Symbols',
+                    rows: [
+                        ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+                        [
+                            { latex: '@' }, { latex: '\\#' }, { latex: '₹' }, { latex: '_' }, { latex: '\\&' },
+                            { latex: '-' }, { latex: '+' }, { latex: '(' }, { latex: ')' }, { latex: '/' }
+                        ],
+                        [
+                            { class: 'action', label: '=\\<', width: 1.5, command: ['switchKeyboard', 'symbols2'] },
+                            { latex: '*' }, { latex: '"' }, { latex: "'" }, { latex: ':' }, { latex: ';' }, { latex: '!' }, { latex: '?' },
+                            { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' }
+                        ],
+                        [
+                            { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboard', 'default'] },
+                            { latex: ',' },
+                            { class: 'action keycap-smile', label: '☺', width: 1.0, command: ['insert', '\\text{:-)}'] },
+                            { class: 'action', label: ' ', latex: '\\,', width: 4 },
+                            { latex: '.' },
+                            { class: 'action', label: '↵', latex: '\\\\', width: 1.5, style: 'background: #4da6ff; color: white; border-color: #4da6ff;' }
+                        ]
+                    ]
+                },
+                {
+                    label: '=\\<',
+                    id: 'symbols2', // Name needed for switching
+                    tooltip: 'Advanced Symbols',
+                    rows: [
+                        [
+                            { latex: '\\sim' }, { latex: '`' }, { latex: '|' }, { latex: '\\cdot' }, { latex: '\\sqrt{#0}' },
+                            { latex: '\\pi' }, { latex: '\\div' }, { latex: '\\times' }, { latex: '\\S' }, { latex: '\\Delta' }
+                        ],
+                        [
+                            { latex: '€' }, { latex: '¥' }, { latex: '\\$' }, { latex: '¢' }, { latex: '^' },
+                            { latex: '^{\\circ}' }, { latex: '=' }, { latex: '\\{' }, { latex: '\\}' }, { latex: '\\backslash' }
+                        ],
+                        [
+                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'symbols'] },
+                            { latex: '\\%' }, { latex: '\\copyright' }, { latex: '\\text{\\textcircled{R}}' }, { latex: '\\text{TM}' }, { latex: '\\checkmark' },
+                            { latex: '[' }, { latex: ']' },
+                            { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' }
+                        ],
+                        [
+                            { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboard', 'default'] },
+                            { latex: '<' },
+                            { class: 'action', label: 'Undo', width: 1.0, command: 'undo' },
+                            { class: 'action', label: ' ', latex: '\\,', width: 4 },
+                            { latex: '>' },
+                            { class: 'action', label: '↵', latex: '\\\\', width: 1.5, style: 'background: #4da6ff; color: white; border-color: #4da6ff;' }
+                        ]
+                    ]
+                }
+            ];
+            // Ensure proper startup
+            window.mathVirtualKeyboard.alphabeticLayout = 'qwerty';
+            window.mathVirtualKeyboard.devicePixelRatio = 2; // sharper on mobile
         }
-        
-        // Route to appropriate version
-        if (isMobileDevice()) {
-            window.location.href = 'mobile-app.html';
-        } else {
-            window.location.href = 'pc-app.html';
+
+
+        // Pre-sort keys by length descending for correct matching order
+        const sortedShortcutKeys = Object.keys(savedShortcuts).sort((a, b) => b.length - a.length);
+        // Identify keys that are prefixes of others (e.g. 'in' is prefix of 'int') to delay their execution
+        const ambiguousKeys = new Set(sortedShortcutKeys.filter(k => sortedShortcutKeys.some(other => other !== k && other.startsWith(k))));
+        let shortcutTimer = null;
+
+        function showToast(msg) { toastEl.textContent = msg; toastEl.style.display = 'block'; setTimeout(() => { toastEl.style.display = 'none'; }, 3000); }
+
+        /* --- TOOLBAR UI --- */
+        ['pointer', 'pen', 'line', 'circle', 'curve', 'eraser', 'arrow'].forEach(t => {
+            const el = document.getElementById('tool-' + t);
+            if (el) el.onclick = () => {
+                currentTool = t;
+                curveStep = 0;
+                document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('active'));
+                el.classList.add('active');
+                // Arrow tool uses canvas area, other tools use drawSurface
+                drawSurface.classList.toggle('active', t !== 'pointer' && t !== 'arrow');
+            };
+        });
+
+        document.getElementById('tool-grid').onclick = () => {
+            const g = document.getElementById('grid-layer');
+            const h = g.style.display === 'none';
+            g.style.display = h ? 'block' : 'none';
+            document.getElementById('tool-grid').classList.toggle('active', h);
+        };
+
+        /* --- HISTORY ENGINE (Memory-Limited) --- */
+        function saveHistory(type, obj) {
+            historyStack.push({ type, obj, state: drawingLayer.toDataURL() });
+            // Prevent memory leaks: limit history stack size
+            if (historyStack.length > MAX_HISTORY_SIZE) {
+                historyStack.shift(); // Remove oldest entry
+            }
+            triggerAutoSave();
         }
+
+        /* --- AUTO-SAVE SYSTEM --- */
+        function triggerAutoSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(saveToLocalStorage, AUTOSAVE_DELAY);
+        }
+
+        function saveToLocalStorage() {
+            try {
+                const data = {
+                    format: 'ABLE_AUTOSAVE',
+                    version: 1,
+                    timestamp: Date.now(),
+                    boxes: Array.from(document.querySelectorAll('.math-box')).map(b => ({
+                        x: b.offsetLeft,
+                        y: b.offsetTop,
+                        c: b.querySelector('math-field').value
+                    })),
+                    arrows: Array.from(arrowLayer.querySelectorAll('line')).map(l => ({
+                        x1: l.getAttribute('x1'),
+                        y1: l.getAttribute('y1'),
+                        x2: l.getAttribute('x2'),
+                        y2: l.getAttribute('y2')
+                    })),
+                    draw: drawingLayer.toDataURL()
+                };
+                localStorage.setItem('able_autosave', JSON.stringify(data));
+                console.log('Auto-saved at', new Date().toLocaleTimeString());
+            } catch (e) {
+                console.warn('Auto-save failed:', e);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('able_autosave');
+                if (!saved) return false;
+
+                const d = JSON.parse(saved);
+                if (d.format !== 'ABLE_AUTOSAVE') return false;
+
+                // Clear existing content
+                document.querySelectorAll('.math-box').forEach(b => b.remove());
+                arrowLayer.querySelectorAll('line').forEach(l => l.remove());
+
+                // Restore boxes
+                if (d.boxes && d.boxes.length > 0) {
+                    d.boxes.forEach(bx => createMathBox(bx.x, bx.y, bx.c));
+                }
+
+                // Restore arrows
+                if (d.arrows) {
+                    d.arrows.forEach(ar => {
+                        const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        l.setAttribute('x1', ar.x1);
+                        l.setAttribute('y1', ar.y1);
+                        l.setAttribute('x2', ar.x2);
+                        l.setAttribute('y2', ar.y2);
+                        l.setAttribute('stroke', '#4da6ff');
+                        l.setAttribute('stroke-width', '2');
+                        l.setAttribute('marker-end', 'url(#arrowhead)');
+                        arrowLayer.appendChild(l);
+                    });
+                }
+
+                // Restore drawing
+                if (d.draw) {
+                    const img = new Image();
+                    img.onload = () => {
+                        dCtx.clearRect(0, 0, drawingLayer.width, drawingLayer.height);
+                        dCtx.drawImage(img, 0, 0);
+                    };
+                    img.src = d.draw;
+                }
+
+                console.log('Restored from auto-save:', new Date(d.timestamp).toLocaleString());
+                showToast('Session restored from auto-save');
+                return d.boxes && d.boxes.length > 0;
+            } catch (e) {
+                console.warn('Failed to load auto-save:', e);
+                return false;
+            }
+        }
+
+        /* --- PROPER PDF EXPORT --- */
+        async function exportToPDF() {
+            showToast('Generating PDF...');
+
+            try {
+                // Temporarily hide UI elements
+                const uiElements = document.querySelectorAll('.sidebar, #mode-status, #help-btn, .controls, #brand-header');
+                uiElements.forEach(el => el.style.visibility = 'hidden');
+
+                // Calculate content bounds
+                let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+
+                document.querySelectorAll('.math-box').forEach(box => {
+                    const rect = box.getBoundingClientRect();
+                    minX = Math.min(minX, rect.left + window.scrollX);
+                    minY = Math.min(minY, rect.top + window.scrollY);
+                    maxX = Math.max(maxX, rect.right + window.scrollX);
+                    maxY = Math.max(maxY, rect.bottom + window.scrollY);
+                });
+
+                // Add padding
+                const padding = 50;
+                minX = Math.max(0, minX - padding);
+                minY = Math.max(0, minY - padding);
+                maxX += padding;
+                maxY += padding;
+
+                const contentWidth = maxX - minX;
+                const contentHeight = maxY - minY;
+
+                // Capture the content area
+                const canvas = await html2canvas(document.body, {
+                    x: minX,
+                    y: minY,
+                    width: contentWidth,
+                    height: contentHeight,
+                    backgroundColor: '#1e1e1e',
+                    scale: 2, // Higher quality
+                    useCORS: true,
+                    logging: false
+                });
+
+                // Restore UI
+                uiElements.forEach(el => el.style.visibility = '');
+
+                // Create PDF
+                const { jsPDF } = window.jspdf;
+                const imgData = canvas.toDataURL('image/png');
+
+                // Determine orientation
+                const orientation = contentWidth > contentHeight ? 'landscape' : 'portrait';
+                const pdf = new jsPDF({
+                    orientation: orientation,
+                    unit: 'px',
+                    format: [contentWidth, contentHeight]
+                });
+
+                pdf.addImage(imgData, 'PNG', 0, 0, contentWidth, contentHeight);
+                pdf.save(`ABLE_Note_${Date.now()}.pdf`);
+
+                showToast('PDF exported successfully!');
+            } catch (e) {
+                console.error('PDF export failed:', e);
+                showToast('PDF export failed. Try again.');
+                // Restore UI in case of error
+                document.querySelectorAll('.sidebar, #mode-status, #help-btn, .controls, #brand-header')
+                    .forEach(el => el.style.visibility = '');
+            }
+        }
+
+        /* --- CLEAR EDITOR --- */
+        function clearEditor() {
+            if (!confirm('Clear all content and start fresh? This cannot be undone.')) return;
+
+            // Clear localStorage
+            localStorage.removeItem('able_autosave');
+
+            // Clear all math boxes
+            document.querySelectorAll('.math-box').forEach(b => b.remove());
+
+            // Clear all arrows
+            arrowLayer.querySelectorAll('line').forEach(l => l.remove());
+
+            // Clear drawing canvas
+            dCtx.clearRect(0, 0, drawingLayer.width, drawingLayer.height);
+
+            // Clear history
+            historyStack = [];
+
+            // Create fresh starting box
+            createMathBox(window.innerWidth / 2 - 150, window.innerHeight / 2 - 60);
+
+            showToast('Editor cleared!');
+        }
+
+        function performUndo() {
+            if (historyStack.length === 0) return;
+            const action = historyStack.pop();
+            if (action.type === 'arrow' && action.obj) action.obj.remove();
+            const prev = historyStack.length > 0 ? historyStack[historyStack.length - 1].state : null;
+            if (prev) {
+                const img = new Image();
+                img.onload = () => { dCtx.clearRect(0, 0, drawingLayer.width, drawingLayer.height); dCtx.drawImage(img, 0, 0); };
+                img.src = prev;
+            } else { dCtx.clearRect(0, 0, drawingLayer.width, drawingLayer.height); }
+        }
+
+        /* --- CANVAS MANAGEMENT --- */
+        function resizeCanvas() {
+            const data = drawingLayer.toDataURL();
+            drawingLayer.width = previewLayer.width = window.innerWidth;
+            drawingLayer.height = previewLayer.height = Math.max(window.innerHeight, document.documentElement.scrollHeight, 2500);
+            [dCtx, pCtx].forEach(c => {
+                c.lineCap = 'round'; c.lineJoin = 'round';
+                c.strokeStyle = '#4da6ff'; c.lineWidth = 3;
+            });
+            const img = new Image();
+            img.onload = () => dCtx.drawImage(img, 0, 0);
+            img.src = data;
+        }
+
+        /* --- UNIFIED MOUSE INTERACTION --- */
+        drawSurface.addEventListener('mousedown', (e) => {
+            if (currentTool === 'pointer') return;
+            isDrawing = true;
+            startX = e.pageX; startY = e.pageY;
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                dCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+                dCtx.lineWidth = currentTool === 'eraser' ? 30 : 3;
+                dCtx.beginPath(); dCtx.moveTo(startX, startY);
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDrawingArrow && activeLine) {
+                activeLine.setAttribute('x2', e.pageX);
+                activeLine.setAttribute('y2', e.pageY);
+                return;
+            }
+            if (!isDrawing) return;
+            const curX = e.pageX, curY = e.pageY;
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                dCtx.lineTo(curX, curY); dCtx.stroke();
+            } else if (currentTool === 'line') {
+                pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
+                pCtx.beginPath(); pCtx.moveTo(startX, startY); pCtx.lineTo(curX, curY); pCtx.stroke();
+            } else if (currentTool === 'circle') {
+                pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
+                const rx = Math.abs(curX - startX) / 2, ry = Math.abs(curY - startY) / 2;
+                pCtx.beginPath(); pCtx.ellipse(startX + (curX - startX) / 2, startY + (curY - startY) / 2, rx, ry, 0, 0, 2 * Math.PI); pCtx.stroke();
+            } else if (currentTool === 'curve') {
+                pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
+                if (curveStep === 0) { pCtx.beginPath(); pCtx.moveTo(startX, startY); pCtx.lineTo(curX, curY); pCtx.stroke(); }
+                else { pCtx.beginPath(); pCtx.moveTo(curveStartX, curveStartY); pCtx.quadraticCurveTo(curX, curY, curveEndX, curveEndY); pCtx.stroke(); }
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (isDrawingArrow) { isDrawingArrow = false; activeLine = null; return; }
+            if (!isDrawing) return;
+            const curX = e.pageX, curY = e.pageY;
+            if (currentTool === 'line') {
+                dCtx.beginPath(); dCtx.moveTo(startX, startY); dCtx.lineTo(curX, curY); dCtx.stroke();
+                saveHistory('scribble', null);
+            } else if (currentTool === 'circle') {
+                const rx = Math.abs(curX - startX) / 2, ry = Math.abs(curY - startY) / 2;
+                dCtx.beginPath(); dCtx.ellipse(startX + (curX - startX) / 2, startY + (curY - startY) / 2, rx, ry, 0, 0, 2 * Math.PI); dCtx.stroke();
+                saveHistory('scribble', null);
+            } else if (currentTool === 'curve') {
+                if (curveStep === 0) { curveStartX = startX; curveStartY = startY; curveEndX = curX; curveEndY = curY; curveStep = 1; }
+                else { dCtx.beginPath(); dCtx.moveTo(curveStartX, curveStartY); dCtx.quadraticCurveTo(curX, curY, curveEndX, curveEndY); dCtx.stroke(); saveHistory('scribble', null); curveStep = 0; }
+            } else if (currentTool === 'pen' || currentTool === 'eraser') { saveHistory('scribble', null); }
+            pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
+            isDrawing = false;
+        });
+
+        /* --- ARROW ENGINE (SHIFT + DRAG or Arrow Tool) --- */
+        window.addEventListener('mousedown', (e) => {
+            if (e.shiftKey || currentTool === 'arrow') {
+                if (e.target.closest('.math-box') || e.target.closest('.sidebar') || e.target.closest('.controls')) return;
+                isDrawingArrow = true;
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', e.pageX); line.setAttribute('y1', e.pageY);
+                line.setAttribute('x2', e.pageX); line.setAttribute('y2', e.pageY);
+                line.setAttribute('stroke', '#4da6ff'); line.setAttribute('stroke-width', '2');
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+                arrowLayer.appendChild(line);
+                activeLine = line;
+                saveHistory('arrow', line);
+                e.preventDefault();
+            }
+        });
+
+        /* === TOUCH SUPPORT FOR MOBILE === */
+
+        // Helper to get touch coordinates
+        function getTouchPos(e) {
+            const touch = e.touches[0] || e.changedTouches[0];
+            return { x: touch.pageX, y: touch.pageY };
+        }
+
+        // Touch handlers for drawing surface
+        drawSurface.addEventListener('touchstart', (e) => {
+            if (currentTool === 'pointer' || currentTool === 'arrow') return;
+            e.preventDefault();
+            const pos = getTouchPos(e);
+            isDrawing = true;
+            startX = pos.x; startY = pos.y;
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                dCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+                dCtx.lineWidth = currentTool === 'eraser' ? 50 : 3; // Wider eraser for mobile
+                dCtx.beginPath(); dCtx.moveTo(startX, startY);
+            }
+        }, { passive: false });
+
+        let rafId = null;
+        drawSurface.addEventListener('touchmove', (e) => {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const pos = getTouchPos(e);
+
+            // Pen/Eraser: Execute immediately for smooth continuous lines
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                dCtx.lineTo(pos.x, pos.y); dCtx.stroke();
+            }
+            // Shapes: Use RAF to prevent lag on high-refresh mobile screens
+            else {
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(() => {
+                    const curX = pos.x, curY = pos.y;
+                    if (currentTool === 'line') {
+                        pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
+                        pCtx.beginPath(); pCtx.moveTo(startX, startY); pCtx.lineTo(curX, curY); pCtx.stroke();
+                    } else if (currentTool === 'circle') {
+                        pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
+                        const rx = Math.abs(curX - startX) / 2, ry = Math.abs(curY - startY) / 2;
+                        pCtx.beginPath(); pCtx.ellipse(startX + (curX - startX) / 2, startY + (curY - startY) / 2, rx, ry, 0, 0, 2 * Math.PI); pCtx.stroke();
+                    } else if (currentTool === 'curve') {
+                        pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
+                        if (curveStep === 0) { pCtx.beginPath(); pCtx.moveTo(startX, startY); pCtx.lineTo(curX, curY); pCtx.stroke(); }
+                        else { pCtx.beginPath(); pCtx.moveTo(curveStartX, curveStartY); pCtx.quadraticCurveTo(curX, curY, curveEndX, curveEndY); pCtx.stroke(); }
+                    }
+                });
+            }
+        }, { passive: false });
+
+        drawSurface.addEventListener('touchend', (e) => {
+            if (!isDrawing) return;
+            const pos = getTouchPos(e);
+            const curX = pos.x, curY = pos.y;
+            if (currentTool === 'line') {
+                dCtx.beginPath(); dCtx.moveTo(startX, startY); dCtx.lineTo(curX, curY); dCtx.stroke();
+                saveHistory('scribble', null);
+            } else if (currentTool === 'circle') {
+                const rx = Math.abs(curX - startX) / 2, ry = Math.abs(curY - startY) / 2;
+                dCtx.beginPath(); dCtx.ellipse(startX + (curX - startX) / 2, startY + (curY - startY) / 2, rx, ry, 0, 0, 2 * Math.PI); dCtx.stroke();
+                saveHistory('scribble', null);
+            } else if (currentTool === 'curve') {
+                if (curveStep === 0) { curveStartX = startX; curveStartY = startY; curveEndX = curX; curveEndY = curY; curveStep = 1; }
+                else { dCtx.beginPath(); dCtx.moveTo(curveStartX, curveStartY); dCtx.quadraticCurveTo(curX, curY, curveEndX, curveEndY); dCtx.stroke(); saveHistory('scribble', null); curveStep = 0; }
+            } else if (currentTool === 'pen' || currentTool === 'eraser') { saveHistory('scribble', null); }
+            pCtx.clearRect(0, 0, previewLayer.width, previewLayer.height);
+            isDrawing = false;
+        });
+
+        // Touch handlers for arrow tool
+        canvasArea.addEventListener('touchstart', (e) => {
+            if (currentTool !== 'arrow') return;
+            if (e.target.closest('.math-box') || e.target.closest('.sidebar') || e.target.closest('.controls')) return;
+            e.preventDefault();
+            const pos = getTouchPos(e);
+            isDrawingArrow = true;
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', pos.x); line.setAttribute('y1', pos.y);
+            line.setAttribute('x2', pos.x); line.setAttribute('y2', pos.y);
+            line.setAttribute('stroke', '#4da6ff'); line.setAttribute('stroke-width', '2');
+            line.setAttribute('marker-end', 'url(#arrowhead)');
+            arrowLayer.appendChild(line);
+            activeLine = line;
+            saveHistory('arrow', line);
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isDrawingArrow && activeLine) {
+                const pos = getTouchPos(e);
+                activeLine.setAttribute('x2', pos.x);
+                activeLine.setAttribute('y2', pos.y);
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchend', () => {
+            if (isDrawingArrow) { isDrawingArrow = false; activeLine = null; }
+        });
+
+        // Note: Double-tap removed (too sensitive on mobile). Use "New Math Box" button in drawer instead.
+
+        /* --- DYNAMIC STRUCTURES --- */
+        function generateStructure(r, c, type) {
+            let s = `\\begin{${type}}`;
+            for (let i = 0; i < r; i++) {
+                for (let j = 0; j < c; j++) { s += (i === 0 && j === 0) ? '#@' : '#?'; if (j < c - 1) s += ' & '; }
+                if (i < r - 1) s += ' \\\\ ';
+            }
+            return s + `\\end{${type}}`;
+        }
+
+        function createMathBox(x, y, initialValue = "") {
+            const container = document.createElement('div');
+            container.className = 'math-box';
+            container.style.left = x + 'px'; container.style.top = y + 'px';
+            const handle = document.createElement('div'); handle.className = 'box-handle'; container.appendChild(handle);
+            const closeBtn = document.createElement('div'); closeBtn.className = 'close-box-btn'; closeBtn.innerHTML = '&times;'; closeBtn.onclick = () => { container.remove(); updateCanvasHeight(); }; container.appendChild(closeBtn);
+            const mfe = new MathfieldElement(); container.appendChild(mfe); canvasArea.appendChild(container);
+            // On mobile: use our custom minimal QWERTY keyboard | On desktop: no virtual keyboard
+            mfe.mathVirtualKeyboardPolicy = isMobile ? 'auto' : 'manual';
+            mfe.virtualKeyboardMode = isMobile ? 'onfocus' : 'off';
+            mfe.value = initialValue;
+            // Force shortcuts to ALWAYS load to debug/fix mobile issue
+            mfe.inlineShortcuts = savedShortcuts;
+            console.log('Debug: Loaded shortcuts count:', Object.keys(savedShortcuts).length);
+
+            mfe.addEventListener('input', () => {
+                const v = mfe.value;
+
+                // Matrix/determinant shortcuts (32mat, 23det etc.)
+                const mm = v.match(/([1-9])([1-9])mat$/);
+                const dm = v.match(/([1-9])([1-9])det$/);
+                if (mm) { for (let i = 0; i < 5; i++) mfe.executeCommand('deleteBackward'); mfe.executeCommand(['insert', generateStructure(parseInt(mm[1]), parseInt(mm[2]), 'pmatrix')]); return; }
+                if (dm) { for (let i = 0; i < 5; i++) mfe.executeCommand('deleteBackward'); mfe.executeCommand(['insert', generateStructure(parseInt(dm[1]), parseInt(dm[2]), 'vmatrix')]); return; }
+
+                // MANUAL SHORTCUT ENGINE FOR MOBILE (Line-Split Strategy)
+                // Fixes "Line 2" bug by treating every line as a fresh start.
+                if (isMobile && sortedShortcutKeys) {
+                    // Cancel any pending ambiguous match
+                    if (shortcutTimer) { clearTimeout(shortcutTimer); shortcutTimer = null; }
+
+                    // Strategy: Split by newline (\\) and only check the LAST line.
+                    // This strips previous context (newlines, old commands) so `int` on line 2 looks just like `int` on line 1.
+                    const lines = v.split('\\\\');
+                    const currentLine = lines[lines.length - 1];
+
+                    for (const key of sortedShortcutKeys) {
+                        if (currentLine.endsWith(key)) {
+                            // Boundary Check on currentLine (is suffix of word?)
+                            if (/^[a-zA-Z]/.test(key)) {
+                                const prefix = currentLine.slice(0, currentLine.length - key.length);
+                                if (prefix.length > 0 && /[a-zA-Z]$/.test(prefix)) continue;
+                                // Simple Recursion Guard: If *immediate* prefix on this line is a single backslash, skip.
+                                // Note: We don't need to check for double backslash because they were removed by the split!
+                                if (prefix.endsWith('\\')) continue;
+                            }
+
+                            // Handler
+                            const executeShortcut = () => {
+                                const latex = savedShortcuts[key];
+                                // Update: Calculate prefix relative to WHOLE value, but logically works same way
+                                const prefix = v.slice(0, v.length - key.length);
+                                mfe.setValue(prefix, { suppressChangeNotifications: true });
+                                mfe.executeCommand(['insert', latex]);
+                            };
+
+                            // Ambiguity Check
+                            if (ambiguousKeys.has(key)) {
+                                shortcutTimer = setTimeout(() => {
+                                    // Re-fetch current line state to verify
+                                    const freshV = mfe.value;
+                                    const freshLines = freshV.split('\\\\');
+                                    const freshCurrent = freshLines[freshLines.length - 1];
+                                    if (freshCurrent.endsWith(key)) {
+                                        executeShortcut();
+                                    }
+                                    shortcutTimer = null;
+                                }, 300);
+                            } else {
+                                executeShortcut();
+                            }
+                            return;
+                        }
+                    }
+                }
+            });
+            setupDrag(handle, container); attachKeyHandlers(mfe);
+            mfe.onfocus = () => container.classList.add('focused');
+            mfe.onblur = () => container.classList.remove('focused');
+            setTimeout(() => { if (!initialValue) mfe.focus(); updateCanvasHeight(); triggerAutoSave(); }, 50);
+        }
+
+        function setupDrag(handle, container) {
+            let drg = false; let sx, sy, il, it;
+
+            // Mouse drag (desktop)
+            handle.onmousedown = (e) => {
+                if (e.shiftKey || currentTool !== 'pointer') return;
+                drg = true; sx = e.pageX; sy = e.pageY;
+                il = container.offsetLeft; it = container.offsetTop;
+                e.preventDefault(); e.stopPropagation();
+            };
+            window.addEventListener('mousemove', (e) => {
+                if (!drg) return;
+                container.style.left = (il + (e.pageX - sx)) + 'px';
+                container.style.top = (it + (e.pageY - sy)) + 'px';
+            });
+            window.addEventListener('mouseup', () => { if (drg) { drg = false; triggerAutoSave(); } });
+
+            // Touch drag for mobile - use long press on container to initiate drag
+            let longPressTimer = null;
+            let isDragging = false;
+
+            container.addEventListener('touchstart', (e) => {
+                if (currentTool !== 'pointer') return;
+                // Only start drag if not touching the math-field directly (allow focus) OR the close button
+                if (e.target.tagName === 'MATH-FIELD' || e.target.closest('math-field') || e.target.closest('.close-box-btn')) {
+                    // User tapped math field or close button - let default actions happen
+                    return;
+                }
+
+                e.preventDefault();
+                const touch = e.touches[0];
+                sx = touch.pageX; sy = touch.pageY;
+                il = container.offsetLeft; it = container.offsetTop;
+                isDragging = true;
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const touch = e.touches[0];
+                container.style.left = (il + (touch.pageX - sx)) + 'px';
+                container.style.top = (it + (touch.pageY - sy)) + 'px';
+            }, { passive: false });
+
+            container.addEventListener('touchend', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    triggerAutoSave();
+                    updateCanvasHeight();
+                }
+            });
+        }
+
+        function updateCanvasHeight() {
+            let maxY = window.innerHeight;
+            document.querySelectorAll('.math-box').forEach(b => { const bot = b.offsetTop + b.offsetHeight; if (bot > maxY) maxY = bot; });
+            const fh = maxY + 1000; canvasArea.style.height = fh + 'px'; arrowLayer.style.height = fh + 'px';
+            if (drawingLayer.height < fh) resizeCanvas();
+        }
+
+        function toggleHelp() { helpModal.style.display = helpModal.style.display === 'flex' ? 'none' : 'flex'; }
+        function toggleMode() { isMathMode = !isMathMode; statusEl.textContent = isMathMode ? "MODE: MATH" : "MODE: TEXT"; statusEl.classList.toggle('active', isMathMode); document.querySelectorAll('math-field').forEach(f => f.inlineShortcuts = isMathMode ? savedShortcuts : {}); }
+
+        function attachKeyHandlers(mfe) {
+            mfe.addEventListener('keydown', (ev) => {
+                if (ev.key === 'F1') { ev.preventDefault(); toggleHelp(); }
+                if (ev.key === 'Tab' && ev.shiftKey) { ev.preventDefault(); toggleMode(); }
+                if (ev.key === 'Enter') { ev.preventDefault(); mfe.executeCommand(['insert', '\\\\']); }
+                // Don't intercept Space - let MathLive's inlineShortcuts process it naturally
+                // (User types 'alpha' + Space -> MathLive converts to α automatically)
+                if (!isMathMode) return;
+                if (ev.code === 'Numpad7') mfe.executeCommand(['insert', '\\int_{#@}^{#@}']);
+                if (ev.code === 'Numpad8') mfe.executeCommand(['insert', '\\sum_{#@}^{#@}']);
+                if (ev.code === 'Numpad9') mfe.executeCommand(['insert', '\\sqrt{#@}']);
+                if (ev.code === 'Numpad4') mfe.executeCommand(['insert', '\\lim_{#@ \\to #@}']);
+                if (ev.code === 'Numpad5') {
+                    const now = Date.now();
+                    if (now - lastMatrixTap < 800) { matrixSize++; if (matrixSize > 2) matrixSize = 0; mfe.executeCommand('moveToGroupStart'); mfe.executeCommand('moveToPreviousChar'); mfe.executeCommand('deleteForward'); }
+                    else { matrixSize = 0; }
+                    lastMatrixTap = now;
+                    if (matrixSize === 0) mfe.executeCommand(['insert', '\\begin{pmatrix} #@ & #@ \\\\ #@ & #@ \\end{pmatrix}']);
+                    else if (matrixSize === 1) mfe.executeCommand(['insert', '\\begin{pmatrix} #@ & #@ & #@ \\\\ #@ & #@ & #@ \\\\ #@ & #@ & #@ \\end{pmatrix}']);
+                    else if (matrixSize === 2) { const row = "#@ & #@ & #@ & #@ \\\\ "; mfe.executeCommand(['insert', `\\begin{pmatrix} ${row}${row}${row}#@ & #@ & #@ & #@ \\end{pmatrix}`]); }
+                }
+            });
+        }
+
+        /* --- GLOBAL DOUBLE CLICK --- */
+        /* --- GLOBAL DOUBLE CLICK --- */
+        window.addEventListener('dblclick', (e) => {
+            if (e.target.closest('.controls') || e.target.closest('.sidebar') || e.target.closest('#help-btn') || e.target.closest('.math-box') || e.target.closest('math-field') || e.target.closest('.ML__keyboard')) return;
+            createMathBox(e.pageX, e.pageY);
+        });
+
+        document.getElementById('clear-btn').onclick = clearEditor;
+        document.getElementById('undo-btn').onclick = performUndo;
+        document.getElementById('export-able-btn').onclick = () => {
+            const data = { format: "ABLE", boxes: Array.from(document.querySelectorAll('.math-box')).map(b => ({ x: b.offsetLeft, y: b.offsetTop, c: b.querySelector('math-field').value })), arrows: Array.from(arrowLayer.querySelectorAll('line')).map(l => ({ x1: l.getAttribute('x1'), y1: l.getAttribute('y1'), x2: l.getAttribute('x2'), y2: l.getAttribute('y2') })), draw: drawingLayer.toDataURL() };
+            const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Note_${Date.now()}.able`; a.click();
+        };
+        document.getElementById('import-able-btn').onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            const r = new FileReader(); r.onload = (ev) => {
+                const d = JSON.parse(ev.target.result);
+                document.querySelectorAll('.math-box').forEach(b => b.remove());
+                arrowLayer.querySelectorAll('line').forEach(l => l.remove());
+                d.boxes.forEach(bx => createMathBox(bx.x, bx.y, bx.c));
+                d.arrows.forEach(ar => { const l = document.createElementNS('http://www.w3.org/2000/svg', 'line'); l.setAttribute('x1', ar.x1); l.setAttribute('y1', ar.y1); l.setAttribute('x2', ar.x2); l.setAttribute('y2', ar.y2); l.setAttribute('stroke', '#4da6ff'); l.setAttribute('stroke-width', '2'); l.setAttribute('marker-end', 'url(#arrowhead)'); arrowLayer.appendChild(l); });
+                if (d.draw) { const img = new Image(); img.onload = () => { dCtx.clearRect(0, 0, drawingLayer.width, drawingLayer.height); dCtx.drawImage(img, 0, 0); }; img.src = d.draw; }
+            }; r.readAsText(e.target.files[0]);
+        };
+        document.getElementById('export-btn').onclick = exportToPDF;
+
+        /* === MOBILE DRAWER FUNCTIONALITY === */
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileDrawer = document.getElementById('mobile-drawer');
+        const mobileDrawerOverlay = document.getElementById('mobile-drawer-overlay');
+        const mobileTextInput = document.getElementById('mobile-text-input');
+
+        let activeMathField = null; // Track the last focused math field
+
+        // Connect Mobile Buttons
+        if (document.getElementById('mobile-undo-btn')) {
+            document.getElementById('mobile-undo-btn').onclick = () => { performUndo(); closeMobileDrawer(); };
+        }
+        if (document.getElementById('mobile-clear-btn')) {
+            document.getElementById('mobile-clear-btn').onclick = () => { clearEditor(); closeMobileDrawer(); };
+        }
+
+        function openMobileDrawer() {
+            mobileDrawer.classList.add('open');
+            mobileDrawerOverlay.classList.add('open');
+        }
+
+        function closeMobileDrawer() {
+            mobileDrawer.classList.remove('open');
+            mobileDrawerOverlay.classList.remove('open');
+        }
+
+        if (mobileMenuBtn) {
+            mobileMenuBtn.onclick = openMobileDrawer;
+        }
+
+        if (mobileDrawerOverlay) {
+            mobileDrawerOverlay.onclick = closeMobileDrawer;
+        }
+
+        // Drawer tool buttons
+        document.querySelectorAll('#mobile-drawer .drawer-btn').forEach(btn => {
+            btn.onclick = () => {
+                const tool = btn.dataset.tool;
+
+                if (tool === 'grid') {
+                    // Toggle grid visibility
+                    const g = document.getElementById('grid-layer');
+                    const isVisible = g.style.display !== 'none';
+                    g.style.display = isVisible ? 'none' : 'block';
+                    btn.classList.toggle('active', !isVisible);
+                } else {
+                    // Set active tool
+                    currentTool = tool;
+                    curveStep = 0;
+                    document.querySelectorAll('#mobile-drawer .drawer-btn').forEach(b => {
+                        if (b.dataset.tool !== 'grid') b.classList.remove('active');
+                    });
+                    btn.classList.add('active');
+                    drawSurface.classList.toggle('active', tool !== 'pointer' && tool !== 'arrow');
+
+                    // Also sync with desktop sidebar
+                    document.querySelectorAll('.sidebar .side-btn').forEach(b => b.classList.remove('active'));
+                    const desktopBtn = document.getElementById('tool-' + tool);
+                    if (desktopBtn) desktopBtn.classList.add('active');
+                }
+
+                closeMobileDrawer();
+            };
+        });
+
+        // Mobile action buttons
+        const mobileNewBoxBtn = document.getElementById('mobile-new-box-btn');
+        if (mobileNewBoxBtn) {
+            mobileNewBoxBtn.onclick = () => {
+                createMathBox(window.innerWidth / 2 - 90, 150);
+                closeMobileDrawer();
+            };
+        }
+
+        const mobileUndoBtn = document.getElementById('mobile-undo-btn');
+        if (mobileUndoBtn) {
+            mobileUndoBtn.onclick = () => {
+                performUndo();
+                closeMobileDrawer();
+            };
+        }
+
+        const mobileClearBtn = document.getElementById('mobile-clear-btn');
+        if (mobileClearBtn) {
+            mobileClearBtn.onclick = () => {
+                closeMobileDrawer();
+                clearEditor();
+            };
+        }
+
+        const mobileExportAbleBtn = document.getElementById('mobile-export-able-btn');
+        if (mobileExportAbleBtn) {
+            mobileExportAbleBtn.onclick = () => {
+                document.getElementById('export-able-btn').click();
+                closeMobileDrawer();
+            };
+        }
+
+        const mobileImportAbleBtn = document.getElementById('mobile-import-able-btn');
+        if (mobileImportAbleBtn) {
+            mobileImportAbleBtn.onclick = () => {
+                fileInput.click();
+                closeMobileDrawer();
+            };
+        }
+
+        const mobileExportPdfBtn = document.getElementById('mobile-export-pdf-btn');
+        if (mobileExportPdfBtn) {
+            mobileExportPdfBtn.onclick = () => {
+                closeMobileDrawer();
+                exportToPDF();
+            };
+        }
+
+        const mobileModeBtn = document.getElementById('mobile-mode-btn');
+        if (mobileModeBtn) {
+            mobileModeBtn.onclick = () => {
+                toggleMode();
+                closeMobileDrawer();
+            };
+        }
+
+        const mobileHelpBtn = document.getElementById('mobile-help-btn');
+        if (mobileHelpBtn) {
+            mobileHelpBtn.onclick = () => {
+                closeMobileDrawer();
+                toggleHelp();
+            };
+        }
+
+        /* === MATH FIELD FOCUS TRACKING === */
+        // Track which math field is active for Visual Viewport scrolling
+        document.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'MATH-FIELD') {
+                activeMathField = e.target;
+            }
+        });
+
+        // Use Visual Viewport API to keep math box visible when keyboard appears
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                if (activeMathField) {
+                    // Scroll the active math box into view above the keyboard
+                    const mathBox = activeMathField.closest('.math-box');
+                    if (mathBox) {
+                        const viewportHeight = window.visualViewport.height;
+                        const boxRect = mathBox.getBoundingClientRect();
+
+                        // If box is below the visible viewport, scroll it up
+                        if (boxRect.bottom > viewportHeight - 50) {
+                            mathBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
+                }
+            });
+        }
+
+        /* === MOBILE ZOOM & PAN === */
+        let currentZoom = 1;
+        let panX = 0, panY = 0;
+        const MIN_ZOOM = 0.5;
+        const MAX_ZOOM = 3;
+        const ZOOM_STEP = 0.25;
+        const zoomWrapper = document.getElementById('zoom-wrapper');
+
+        function applyTransform() {
+            if (zoomWrapper) {
+                zoomWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+            }
+        }
+
+        function setZoom(zoom, focalX = null, focalY = null) {
+            const oldZoom = currentZoom;
+            currentZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+
+            // Adjust pan to zoom towards focal point
+            if (focalX !== null && focalY !== null) {
+                const zoomRatio = currentZoom / oldZoom;
+                panX = focalX - (focalX - panX) * zoomRatio;
+                panY = focalY - (focalY - panY) * zoomRatio;
+            }
+
+            applyTransform();
+        }
+
+        const zoomInBtn = document.getElementById('zoom-in-btn');
+        const zoomOutBtn = document.getElementById('zoom-out-btn');
+        const zoomResetBtn = document.getElementById('zoom-reset-btn');
+
+        if (zoomInBtn) zoomInBtn.onclick = () => setZoom(currentZoom + ZOOM_STEP);
+        if (zoomOutBtn) zoomOutBtn.onclick = () => setZoom(currentZoom - ZOOM_STEP);
+        if (zoomResetBtn) zoomResetBtn.onclick = () => {
+            currentZoom = 1;
+            panX = 0;
+            panY = 0;
+            applyTransform();
+        };
+
+        // Pinch-to-zoom and single-finger pan support
+        let initialPinchDistance = null;
+        let initialZoomOnPinch = 1;
+        let initialPanX = 0, initialPanY = 0;
+        let lastTouchMidX = 0, lastTouchMidY = 0;
+
+        // Single finger pan state
+        let singleFingerPan = false;
+        let lastSingleTouchX = 0, lastSingleTouchY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            // Single finger pan on canvas area (not on math boxes or controls)
+            if (e.touches.length === 1) {
+                const target = e.target;
+                const isCanvas = target.id === 'canvas-area' ||
+                    target.id === 'drawing-layer' ||
+                    target.id === 'grid-layer' ||
+                    target.id === 'zoom-wrapper' ||
+                    target.closest('#canvas-area') && !target.closest('.math-box') && !target.closest('math-field');
+
+                if (isCanvas) {
+                    singleFingerPan = true;
+                    lastSingleTouchX = e.touches[0].pageX;
+                    lastSingleTouchY = e.touches[0].pageY;
+                    initialPanX = panX;
+                    initialPanY = panY;
+                }
+            }
+
+            // Two finger pinch-zoom
+            if (e.touches.length === 2) {
+                singleFingerPan = false; // Cancel single finger pan when second finger touches
+                const dx = e.touches[0].pageX - e.touches[1].pageX;
+                const dy = e.touches[0].pageY - e.touches[1].pageY;
+                initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+                initialZoomOnPinch = currentZoom;
+                initialPanX = panX;
+                initialPanY = panY;
+                lastTouchMidX = (e.touches[0].pageX + e.touches[1].pageX) / 2;
+                lastTouchMidY = (e.touches[0].pageY + e.touches[1].pageY) / 2;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            // Single finger pan
+            if (e.touches.length === 1 && singleFingerPan) {
+                const dx = e.touches[0].pageX - lastSingleTouchX;
+                const dy = e.touches[0].pageY - lastSingleTouchY;
+                panX = initialPanX + dx;
+                panY = initialPanY + dy;
+                applyTransform();
+            }
+
+            // Two finger pinch-zoom
+            if (e.touches.length === 2 && initialPinchDistance) {
+                const dx = e.touches[0].pageX - e.touches[1].pageX;
+                const dy = e.touches[0].pageY - e.touches[1].pageY;
+                const currentDistance = Math.sqrt(dx * dx + dy * dy);
+                const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, initialZoomOnPinch * (currentDistance / initialPinchDistance)));
+
+                // Calculate current midpoint (focal point)
+                const midX = (e.touches[0].pageX + e.touches[1].pageX) / 2;
+                const midY = (e.touches[0].pageY + e.touches[1].pageY) / 2;
+
+                // Adjust pan so content under fingers stays under fingers
+                // Formula: newPan = focalPoint - (focalPoint - initialPan) * (newZoom / initialZoom)
+                const zoomRatio = newZoom / initialZoomOnPinch;
+                panX = midX - (lastTouchMidX - initialPanX) * zoomRatio;
+                panY = midY - (lastTouchMidY - initialPanY) * zoomRatio;
+
+                currentZoom = newZoom;
+                applyTransform();
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', () => {
+            initialPinchDistance = null;
+            singleFingerPan = false;
+        });
+
+        window.onkeydown = (e) => {
+            if (e.key === 'F1') { e.preventDefault(); toggleHelp(); }
+            if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) { if (document.activeElement.tagName !== 'MATH-FIELD') performUndo(); }
+        };
+
+        window.onload = () => {
+            resizeCanvas();
+            // Try to restore from auto-save, otherwise create default box
+            const restored = loadFromLocalStorage();
+            if (!restored && document.querySelectorAll('.math-box').length === 0) {
+                createMathBox(window.innerWidth / 2 - 150, window.innerHeight / 2 - 60);
+            }
+            updateCanvasHeight();
+        };
+        window.onresize = resizeCanvas;
     </script>
 </body>
+
 </html>
