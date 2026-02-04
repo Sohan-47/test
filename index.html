@@ -294,6 +294,32 @@
             border-color: var(--accent);
         }
 
+        /* --- DOCUMENT MODE STYLES --- */
+        body.document-mode {
+            background-color: #1a1a1a;
+            /* Outer background darker to make page pop */
+        }
+
+        body.document-mode #grid-layer {
+            display: none;
+        }
+
+        .document-mode #zoom-wrapper {
+            /* Center the content */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* In document mode, we center the wrapper's content logic differently */
+        }
+
+        /* The "Page" look */
+        .page-boundary {
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+            background-color: #2d2d2d;
+            /* Dark page as requested */
+        }
+
         .controls {
             position: fixed;
             bottom: 0;
@@ -894,6 +920,7 @@
         </div>
         <div>
             <button id="clear-btn" class="btn" style="background:#dc2626">Clear Editor</button>
+            <button id="toggle-mode-btn" class="btn" style="background:#2563eb">Document Mode</button>
             <button id="undo-btn" class="btn" style="background:#444">Undo Action</button>
             <button id="export-able-btn" class="btn" style="background:#059669">Export .able</button>
             <button id="import-able-btn" class="btn" style="background:#7c3aed">Import .able</button>
@@ -1408,26 +1435,42 @@
 
             try {
                 // Temporarily hide UI elements
-                const uiElements = document.querySelectorAll('.sidebar, #mode-status, #help-btn, .controls, #brand-header');
+                const uiElements = document.querySelectorAll('.sidebar, #mode-status, #help-btn, .controls, #brand-header, #toast, #mobile-menu-btn');
                 uiElements.forEach(el => el.style.visibility = 'hidden');
+
+                // Color Inversion for Document Mode (Dark UI -> White PDF)
+                let originalFilter = '';
+                if (editorMode === 'document') {
+                    originalFilter = document.body.style.filter;
+                    document.body.style.filter = 'invert(1) hue-rotate(180deg)';
+                    // hue-rotate ensures blue ink stays blue (otherwise it turns orange)
+                }
 
                 // Calculate content bounds
                 let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
 
-                document.querySelectorAll('.math-box').forEach(box => {
-                    const rect = box.getBoundingClientRect();
-                    minX = Math.min(minX, rect.left + window.scrollX);
-                    minY = Math.min(minY, rect.top + window.scrollY);
-                    maxX = Math.max(maxX, rect.right + window.scrollX);
-                    maxY = Math.max(maxY, rect.bottom + window.scrollY);
-                });
-
-                // Add padding
-                const padding = 50;
-                minX = Math.max(0, minX - padding);
-                minY = Math.max(0, minY - padding);
-                maxX += padding;
-                maxY += padding;
+                if (editorMode === 'document') {
+                    // In document mode, capture the whole "Page"
+                    minX = 0; minY = 0;
+                    maxX = 1200; maxY = 1600;
+                    // Or specific canvas size
+                    maxX = drawingLayer.width;
+                    maxY = drawingLayer.height;
+                } else {
+                    document.querySelectorAll('.math-box').forEach(box => {
+                        const rect = box.getBoundingClientRect();
+                        minX = Math.min(minX, rect.left + window.scrollX);
+                        minY = Math.min(minY, rect.top + window.scrollY);
+                        maxX = Math.max(maxX, rect.right + window.scrollX);
+                        maxY = Math.max(maxY, rect.bottom + window.scrollY);
+                    });
+                    // Add padding
+                    const padding = 50;
+                    minX = Math.max(0, minX - padding);
+                    minY = Math.max(0, minY - padding);
+                    maxX += padding;
+                    maxY += padding;
+                }
 
                 const contentWidth = maxX - minX;
                 const contentHeight = maxY - minY;
@@ -1438,13 +1481,25 @@
                     y: minY,
                     width: contentWidth,
                     height: contentHeight,
-                    backgroundColor: '#1e1e1e',
+                    backgroundColor: editorMode === 'document' ? '#eeeeee' : '#1e1e1e', // White-ish background for doc mode (which gets inverted to dark? Wait. Logic check below)
+                    // Logic Check:
+                    // We want FINAL PDF to be White Paper, Black Text.
+                    // Currently UI is: Dark Paper, White Text.
+                    // If we Invert Body: Paper becomes White, Text becomes Black.
+                    // So we capture THAT.
+                    // BackgroundColor in html2canvas is applied BEHIND the capture.
+                    // If body is inverted, the "bg" of body is White.
+                    // So we should probably let html2canvas capture the transparent bg or use white.
+
                     scale: 2, // Higher quality
                     useCORS: true,
                     logging: false
                 });
 
-                // Restore UI
+                // Restore UI & Colors
+                if (editorMode === 'document') {
+                    document.body.style.filter = originalFilter;
+                }
                 uiElements.forEach(el => el.style.visibility = '');
 
                 // Create PDF
@@ -1510,16 +1565,34 @@
         }
 
         /* --- CANVAS MANAGEMENT --- */
+        let editorMode = 'infinite'; // 'infinite' or 'document'
+
         function resizeCanvas() {
             const data = drawingLayer.toDataURL();
-            // Expand width to allow horizontal scrolling/drawing
-            const newWidth = Math.max(window.innerWidth, 5000);
-            const newHeight = Math.max(window.innerHeight, document.documentElement.scrollHeight, 5000);
+
+            let newWidth, newHeight;
+
+            if (editorMode === 'document') {
+                // Fixed Page Dimensions (High Res A4-ish)
+                newWidth = 1200;
+                newHeight = 1600;
+
+                // Visual Page Boundary
+                canvasArea.classList.add('page-boundary');
+                document.body.classList.add('document-mode');
+            } else {
+                // Infinite Canvas logic
+                newWidth = Math.max(window.innerWidth, 5000);
+                newHeight = Math.max(window.innerHeight, document.documentElement.scrollHeight, 5000);
+
+                canvasArea.classList.remove('page-boundary');
+                document.body.classList.remove('document-mode');
+            }
 
             drawingLayer.width = previewLayer.width = newWidth;
             drawingLayer.height = previewLayer.height = newHeight;
 
-            // Fix dead zones: Ensure interaction layers match full dimensions
+            // Apply dimensions to all interaction layers
             canvasArea.style.width = newWidth + 'px';
             canvasArea.style.height = newHeight + 'px';
             drawSurface.style.width = newWidth + 'px';
@@ -1535,6 +1608,23 @@
             img.onload = () => dCtx.drawImage(img, 0, 0);
             img.src = data;
         }
+
+        document.getElementById('toggle-mode-btn').onclick = () => {
+            editorMode = editorMode === 'infinite' ? 'document' : 'infinite';
+            document.getElementById('toggle-mode-btn').textContent = editorMode === 'infinite' ? 'Document Mode' : 'Infinite Canvas';
+            resizeCanvas();
+
+            // Center view if switching to document
+            if (editorMode === 'document') {
+                // Reset zoom/pan to show the page centered
+                currentZoom = 0.8;
+                // Center the 1200px page in the window
+                panX = (window.innerWidth - 1200 * currentZoom) / 2;
+                panY = 50;
+                applyTransform();
+            }
+            showToast('Switched to ' + (editorMode === 'infinite' ? 'Infinite' : 'Document') + ' Mode');
+        };
 
         /* --- UNIFIED MOUSE INTERACTION --- */
         drawSurface.addEventListener('mousedown', (e) => {
