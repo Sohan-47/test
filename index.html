@@ -1740,23 +1740,23 @@
                     if (!mfe._lastInputTime) mfe._lastInputTime = 0;
 
                     const prev = mfe._prevValue;
-                    
+
                     // 1. PERMISSIVE DIFF LOGIC (Prefix/Suffix + Noise Filtering)
-                    
+
                     let prefixLen = 0;
                     while (prefixLen < prev.length && prefixLen < v.length && prev[prefixLen] === v[prefixLen]) {
                         prefixLen++;
                     }
 
                     let suffixLen = 0;
-                    while (suffixLen < (prev.length - prefixLen) && suffixLen < (v.length - prefixLen) && 
-                           prev[prev.length - 1 - suffixLen] === v[v.length - 1 - suffixLen]) {
+                    while (suffixLen < (prev.length - prefixLen) && suffixLen < (v.length - prefixLen) &&
+                        prev[prev.length - 1 - suffixLen] === v[v.length - 1 - suffixLen]) {
                         suffixLen++;
                     }
 
                     const inserted = v.slice(prefixLen, v.length - suffixLen);
                     const deleted = prev.slice(prefixLen, prev.length - suffixLen);
-                    
+
                     let charTyped = null;
 
                     // PERMISSIVE CHECK:
@@ -1764,27 +1764,27 @@
                     if (inserted.length > 0) {
                         // Remove common noise: braces, backslashes, spaces, newlines, parens
                         const cleanInserted = inserted.replace(/[{}\s\\()]/g, '');
-                        
+
                         if (cleanInserted.length === 1) {
                             charTyped = cleanInserted;
                             console.log(`[Diff] Noisy insertion detected. Raw: "${inserted}" -> Clean: "${charTyped}"`);
                         } else if (cleanInserted.length === 0 && inserted.length > 0) {
-                             // Just noise (e.g. formatting change). Ignore.
-                             console.log(`[Diff] Ignored noise: "${inserted}"`);
+                            // Just noise (e.g. formatting change). Ignore.
+                            console.log(`[Diff] Ignored noise: "${inserted}"`);
                         } else {
-                             // Multiple real chars (paste?) -> Reset
-                             mfe._keyBuffer = '';
+                            // Multiple real chars (paste?) -> Reset
+                            mfe._keyBuffer = '';
                         }
                     }
-                    
+
                     // Buffer Update
                     if (charTyped) {
-                         mfe._keyBuffer += charTyped;
+                        mfe._keyBuffer += charTyped;
                     } else if (deleted.length > 0 && inserted.length === 0) {
-                         // Backspace (lenient: any pure deletion is a backspace)
-                         mfe._keyBuffer = mfe._keyBuffer.slice(0, -1);
+                        // Backspace (lenient: any pure deletion is a backspace)
+                        mfe._keyBuffer = mfe._keyBuffer.slice(0, -1);
                     }
-                    
+
                     // Update UI
                     debugOverlay.innerText = `Buf: [${mfe._keyBuffer}]`;
                     debugOverlay.style.color = mfe._keyBuffer ? '#4da6ff' : '#aaa';
@@ -1805,7 +1805,7 @@
                                 const latex = savedShortcuts[key];
                                 for (let i = 0; i < key.length; i++) mfe.executeCommand('deleteBackward');
                                 mfe.executeCommand(['insert', latex]);
-                                mfe._keyBuffer = ''; 
+                                mfe._keyBuffer = '';
                                 debugOverlay.innerText = 'Buf: [Executed]';
                                 debugOverlay.style.color = '#0f0';
                             };
@@ -1825,7 +1825,7 @@
             // 3. SELECTION MONITOR
             mfe.addEventListener('selection-change', () => {
                 const timeSinceInput = Date.now() - (mfe._lastInputTime || 0);
-                if (timeSinceInput > 100) {
+                if (timeSinceInput > 2000) {
                     mfe._keyBuffer = '';
                     if (debugOverlay) debugOverlay.innerText = 'Buf: []';
                 }
