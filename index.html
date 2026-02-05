@@ -1280,12 +1280,12 @@
                         ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
                         ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
                         [
-                            { class: 'action', label: '⇧', command: ['switchKeyboardLayer', 'mobile-shift'] }, // Explicit layer switch
+                            { class: 'action', label: '⇧', layer: 'mobile-shift' }, // Explicit layer property
                             'z', 'x', 'c', 'v', 'b', 'n', 'm',
                             { class: 'action', label: '⌫', command: 'deleteBackward' }
                         ],
                         [
-                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboardLayer', 'mobile-symbols'] },
+                            { class: 'action', label: '?123', width: 1.5, layer: 'mobile-symbols' },
                             { latex: ',' },
                             // Removed emoji key to fit spacebar
                             { class: 'action', label: ' ', latex: '\\,', width: 5 },
