@@ -796,29 +796,31 @@
                 display: flex;
             }
 
-            /* Reposition Help Button - Below Branding */
+            /* Reposition Help Button - Top Right */
             #help-btn {
-                top: 60px;
-                /* Below branding */
-                right: auto;
-                left: 10px;
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                left: auto !important;
+                /* Force override */
                 width: 32px;
                 height: 32px;
                 font-size: 14px;
             }
 
-            /* Reposition Mode Status - Below Help Button */
+            /* Reposition Mode Status - Below Help Button (Right Aligned) */
             #mode-status {
-                top: 100px;
+                position: fixed;
+                top: 50px !important;
                 /* Below help button */
-                left: 10px;
-                /* Aligned left */
-                right: auto;
+                right: 10px !important;
+                /* Aligned right */
+                left: auto !important;
+                /* Force override */
                 font-size: 10px;
                 padding: 5px 10px;
                 cursor: pointer;
                 background: #383838;
-                /* Button-like appearance */
                 border: 1px solid #444;
                 color: white;
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
@@ -827,6 +829,8 @@
             #mode-status:active {
                 background: var(--accent);
             }
+
+
 
             /* Hide drag handle on mobile for cleaner look */
             /* Handle visible on mobile now */
@@ -2538,9 +2542,9 @@
             if (!restored && document.querySelectorAll('.math-box').length === 0) {
                 createMathBox(window.innerWidth / 2 - 150, window.innerHeight / 2 - 60);
             }
-            // Bind Mode Toggle
+            // Bind Mode Toggle (Input Mode: Math/Text)
             const modeBtn = document.getElementById('mode-status');
-            if (modeBtn) modeBtn.onclick = toggleDocumentMode;
+            if (modeBtn) modeBtn.onclick = toggleMode;
         };
         // Debounce resize to prevent rapid clearing on mobile UI shifts
         let resizeTimer;
