@@ -12,7 +12,15 @@
 
     <!-- PDF Export Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // Use a persistent function for mode toggling that html can see
+        window.toggleMode = function () {
+            // Placeholder, overwritten in main script
+            console.log("Toggle Mode");
+        };
+    </script>
 
     <style>
         :root {
@@ -259,13 +267,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;
+            opacity: 1;
+            /* Always visible on touch usually, but keeping hover for desktop */
             transition: opacity 0.2s;
             z-index: 200;
         }
 
         .math-box:hover .close-box-btn {
             opacity: 1;
+        }
+
+        /* Mobile Always Show Close Button */
+        @media (max-width: 768px) {
+            .close-box-btn {
+                opacity: 1;
+            }
         }
 
         math-field {
@@ -292,6 +308,8 @@
             color: #64748b;
             border: 1px solid #334155;
             z-index: 2500;
+            cursor: pointer;
+            /* Clickable */
         }
 
         #mode-status.active {
@@ -727,9 +745,19 @@
                 -webkit-overflow-scrolling: touch;
             }
 
-            /* Hide brand header on mobile */
+            /* Show brand header on mobile (Top Left) */
             #brand-header {
-                display: none;
+                display: block;
+                top: 10px;
+                left: 10px;
+            }
+
+            #brand-header h1 {
+                font-size: 1.2rem;
+            }
+
+            #brand-header p {
+                font-size: 0.6rem;
             }
 
             /* Hide original sidebar on mobile */
@@ -742,9 +770,12 @@
                 display: none !important;
             }
 
-            /* Show mobile menu button */
+            /* Show mobile menu button (Hamburger) - Positioned a bit above middle */
             #mobile-menu-btn {
                 display: flex;
+                top: 40%;
+                /* A bit above middle */
+                left: 10px;
             }
 
             /* Show mobile drawer (hidden by default, slides in) */
@@ -765,21 +796,36 @@
                 display: flex;
             }
 
-            /* Reposition mode status and help to avoid hamburger */
-            #mode-status {
-                top: 10px;
-                left: 60px;
-                right: auto;
-                font-size: 10px;
-                padding: 5px 10px;
-            }
-
+            /* Reposition Help Button - Below Branding */
             #help-btn {
-                top: 10px;
-                right: 10px;
+                top: 60px;
+                /* Below branding */
+                right: auto;
+                left: 10px;
                 width: 32px;
                 height: 32px;
                 font-size: 14px;
+            }
+
+            /* Reposition Mode Status - Below Help Button */
+            #mode-status {
+                top: 100px;
+                /* Below help button */
+                left: 10px;
+                /* Aligned left */
+                right: auto;
+                font-size: 10px;
+                padding: 5px 10px;
+                cursor: pointer;
+                background: #383838;
+                /* Button-like appearance */
+                border: 1px solid #444;
+                color: white;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            }
+
+            #mode-status:active {
+                background: var(--accent);
             }
 
             /* Hide drag handle on mobile for cleaner look */
@@ -1024,13 +1070,7 @@
             </div>
         </div>
 
-        <div class="drawer-section">
-            <h3>Mode</h3>
-            <div class="drawer-actions">
-                <button id="mobile-mode-btn" class="btn" style="background:#444">Toggle Math/Text</button>
-                <button id="mobile-help-btn" class="btn" style="background:#444">Show Help</button>
-            </div>
-        </div>
+
     </div>
 
     <!-- Mobile Zoom Controls -->
@@ -1585,10 +1625,31 @@
         /* --- CANVAS MANAGEMENT --- */
         let editorMode = 'infinite'; // 'infinite' or 'document'
 
+        // Re-implementing Toggle Document Mode for the UI Button
         const toggleDocumentMode = () => {
-            // DEPRECATED: Document Mode removed. Keeping function stub if needed or alert
-            console.log("Document Mode removed");
+            editorMode = editorMode === 'infinite' ? 'document' : 'infinite';
+            const statusEl = document.getElementById('mode-status');
+            if (statusEl) statusEl.textContent = 'MODE: ' + (editorMode === 'infinite' ? 'INFINITE' : 'DOCUMENT');
+
+            resizeCanvas();
+
+            // Center view if switching to document
+            if (editorMode === 'document') {
+                currentZoom = 0.8;
+                panX = (window.innerWidth - 1200 * currentZoom) / 2;
+                panY = 50;
+                applyTransform();
+                document.body.classList.add('document-mode');
+                canvasArea.classList.add('page-boundary');
+            } else {
+                document.body.classList.remove('document-mode');
+                canvasArea.classList.remove('page-boundary');
+            }
+            showToast('Switched to ' + (editorMode === 'infinite' ? 'Infinite' : 'Document') + ' Mode');
         };
+
+        // Expose to window for global access if needed
+        window.toggleDocumentMode = toggleDocumentMode;
 
         function resizeCanvas() {
             // Infinite Canvas logic
@@ -2477,6 +2538,9 @@
             if (!restored && document.querySelectorAll('.math-box').length === 0) {
                 createMathBox(window.innerWidth / 2 - 150, window.innerHeight / 2 - 60);
             }
+            // Bind Mode Toggle
+            const modeBtn = document.getElementById('mode-status');
+            if (modeBtn) modeBtn.onclick = toggleDocumentMode;
         };
         // Debounce resize to prevent rapid clearing on mobile UI shifts
         let resizeTimer;
