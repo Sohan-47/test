@@ -1759,6 +1759,7 @@
 
             // Add visual border for paper boundary
             canvasArea.style.boxShadow = "0 0 50px rgba(0,0,0,0.5)";
+            canvasArea.style.border = "2px dashed #555"; // Visible Boundary
             canvasArea.style.backgroundColor = "#1e1e1e"; // Match theme, or make it distinct? Keeping dark.
 
             [dCtx, pCtx].forEach(c => {
@@ -2022,6 +2023,13 @@
         function createMathBox(x, y, initialValue = "") {
             const container = document.createElement('div');
             container.className = 'math-box';
+
+            // Safe Spawn: Clamp initial position to be strictly inside canvas with padding
+            // Assuming strict boundaries 0 to CANVAS_WIDTH/HEIGHT
+            // We don't know width yet, so we ensure at least left/top margin
+            x = Math.max(20, Math.min(CANVAS_WIDTH - 100, x));
+            y = Math.max(20, Math.min(CANVAS_HEIGHT - 60, y));
+
             container.style.left = x + 'px'; container.style.top = y + 'px';
             const handle = document.createElement('div'); handle.className = 'box-handle'; container.appendChild(handle);
             const closeBtn = document.createElement('div'); closeBtn.className = 'close-box-btn'; closeBtn.innerHTML = '&times;'; closeBtn.onclick = () => { container.remove(); updateCanvasHeight(); }; container.appendChild(closeBtn);
@@ -2174,8 +2182,18 @@
             };
             window.addEventListener('mousemove', (e) => {
                 if (!drg) return;
-                container.style.left = (il + (e.pageX - sx)) + 'px';
-                container.style.top = (it + (e.pageY - sy)) + 'px';
+                let newX = il + (e.pageX - sx);
+                let newY = it + (e.pageY - sy);
+
+                // Clamp to canvas boundaries
+                const maxX = CANVAS_WIDTH - container.offsetWidth;
+                const maxY = CANVAS_HEIGHT - container.offsetHeight;
+
+                newX = Math.max(0, Math.min(maxX, newX));
+                newY = Math.max(0, Math.min(maxY, newY));
+
+                container.style.left = newX + 'px';
+                container.style.top = newY + 'px';
             });
             window.addEventListener('mouseup', () => { if (drg) { drg = false; triggerAutoSave(); } });
 
@@ -2202,8 +2220,18 @@
                 if (!isDragging) return;
                 e.preventDefault();
                 const touch = e.touches[0];
-                container.style.left = (il + (touch.pageX - sx)) + 'px';
-                container.style.top = (it + (touch.pageY - sy)) + 'px';
+                let newX = il + (touch.pageX - sx);
+                let newY = it + (touch.pageY - sy);
+
+                // Clamp to canvas boundaries
+                const maxX = CANVAS_WIDTH - container.offsetWidth;
+                const maxY = CANVAS_HEIGHT - container.offsetHeight;
+
+                newX = Math.max(0, Math.min(maxX, newX));
+                newY = Math.max(0, Math.min(maxY, newY));
+
+                container.style.left = newX + 'px';
+                container.style.top = newY + 'px';
             }, { passive: false });
 
             container.addEventListener('touchend', () => {
