@@ -2761,8 +2761,8 @@
         if (zoomOutBtn) zoomOutBtn.onclick = () => setZoom(currentZoom - ZOOM_STEP);
         if (zoomResetBtn) zoomResetBtn.onclick = () => {
             currentZoom = 1;
-            panX = 0;
-            panY = 0;
+            panX = (window.innerWidth - CANVAS_WIDTH) / 2;
+            panY = (window.innerHeight - CANVAS_HEIGHT) / 2;
             applyTransform();
         };
 
