@@ -1863,8 +1863,8 @@
             // Clear history
             historyStack = [];
 
-            // Create fresh starting box
-            createMathBox(window.innerWidth / 2, window.innerHeight / 2);
+            // Create fresh starting box at CANVAS CENTER
+            createMathBox(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 60);
 
             showToast('Editor cleared!');
         }
