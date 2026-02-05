@@ -1197,7 +1197,8 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="5" y1="19" x2="19" y2="5" />
                         <polyline points="10 5 19 5 19 14" />
-                    </svg></div>
+                    </svg>
+                </div>
             </div>
         </div>
 
@@ -2907,10 +2908,26 @@
 
         window.onload = () => {
             resizeCanvas();
+
+            // CENTER VIEW ON CANVAS INITIALLY
+            // We want the center of the viewport to match the center of the canvas
+            // ViewCenter = pan + CanvasCenter * zoom
+            // Let's assume zoom = 1.
+            // ScreenCenter = pan + CanvasWidth/2
+            // pan = ScreenCenter - CanvasWidth/2
+            // pan = (WindowWidth / 2) - (CanvasWidth / 2)
+            panX = (window.innerWidth - CANVAS_WIDTH) / 2;
+            panY = (window.innerHeight - CANVAS_HEIGHT) / 2;
+
+            // Apply strict clamp to ensure we don't start out of bounds (though center should be safe)
+            clampPan();
+            applyTransform();
+
             // Try to restore from auto-save, otherwise create default box
             const restored = loadFromLocalStorage();
             if (!restored && document.querySelectorAll('.math-box').length === 0) {
-                createMathBox(window.innerWidth / 2 - 150, window.innerHeight / 2 - 60);
+                // Spawn at Center of CANVAS (not screen)
+                createMathBox(CANVAS_WIDTH / 2 - 150, CANVAS_HEIGHT / 2 - 60);
             }
             // Bind Mode Toggle (Input Mode: Math/Text)
             const modeBtn = document.getElementById('mode-status');
