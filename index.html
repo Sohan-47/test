@@ -1282,9 +1282,9 @@
                         ],
                         [
                             { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboard', 'mobile-default'], layer: 'mobile-default' },
-                            { latex: ',' },
-                            { class: 'action keycap-smile', label: '☺', width: 1.0, command: ['insert', '\\text{:-)}'] },
-                            { class: 'action', label: ' ', latex: '\\,', width: 4 },
+                            { class: 'action', label: '←', command: 'moveToPreviousChar' },
+                            { class: 'action', label: '→', command: 'moveToNextChar' },
+                            { class: 'action', label: ' ', latex: '\\,', width: 2 },
                             { latex: '.' },
                             { class: 'action', label: '↵', latex: '\\\\', width: 1.5, style: 'background: #4da6ff; color: white; border-color: #4da6ff;' }
                         ]
@@ -1304,11 +1304,10 @@
                             { class: 'action', label: '_', command: ['moveToSubscript'] }, { latex: '=' }, { latex: '\\{' }, { latex: '\\}' }, { latex: '\\backslash' }
                         ],
                         [
-                            { class: 'action', label: '←', command: 'moveToPreviousChar' },
-                            { class: 'action', label: '→', command: 'moveToNextChar' },
+                            { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' },
                             { latex: '@' }, { latex: '\\#' },
                             { latex: '[' }, { latex: ']' },
-                            { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' }
+                            { latex: ',' }, { latex: '.' }
                         ],
                         [
                             { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboard', 'default'] },
