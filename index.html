@@ -1318,6 +1318,33 @@
             }
         };
 
+        // Continuous Backspace Handlers
+        window.backspaceTimer = null;
+        window.startBackspace = (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            // Execute once immediately
+            if (window.mathVirtualKeyboard && window.mathVirtualKeyboard.executeCommand) {
+                window.mathVirtualKeyboard.executeCommand('deleteBackward');
+            }
+            // Start repeating after delay
+            window.stopBackspace(); // Clear any existing
+            window.backspaceTimer = setTimeout(() => {
+                window.backspaceInterval = setInterval(() => {
+                    if (window.mathVirtualKeyboard && window.mathVirtualKeyboard.executeCommand) {
+                        window.mathVirtualKeyboard.executeCommand('deleteBackward');
+                    }
+                }, 100); // Repeat every 100ms
+            }, 500); // Wait 500ms before repeating
+        };
+
+        window.stopBackspace = () => {
+            if (window.backspaceTimer) clearTimeout(window.backspaceTimer);
+            if (window.backspaceInterval) clearInterval(window.backspaceInterval);
+        };
+
         /* === AUTHENTIC GBOARD REPLICA LAYOUT === */
         if (isMobile && window.mathVirtualKeyboard) {
             console.log("Mobile Gboard Layout Active");
@@ -1336,7 +1363,7 @@
                             // HTML Label Hack: Inline event handler to bypass command system
                             { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="event.preventDefault(); event.stopPropagation(); window.sneakySwitchLayer(\'Shift\');">⇧</span>', command: 'ignore' },
                             'z', 'x', 'c', 'v', 'b', 'n', 'm',
-                            { class: 'action', label: '⌫', command: 'deleteBackward' }
+                            { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="window.startBackspace(event)" onpointerup="window.stopBackspace()" onpointerleave="window.stopBackspace()">⌫</span>', command: 'ignore' }
                         ],
                         [
                             { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="event.preventDefault(); event.stopPropagation(); window.sneakySwitchLayer(\'?123\');">?123</span>', width: 1.5, command: 'ignore' },
@@ -1358,7 +1385,7 @@
                         [
                             { class: 'action', label: '⇧', command: ['switchKeyboardLayer', 'mobile-default'], style: 'background: #4da6ff; color: white;' }, // Toggle back
                             'Z', 'X', 'C', 'V', 'B', 'N', 'M',
-                            { class: 'action', label: '⌫', command: 'deleteBackward' }
+                            { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="window.startBackspace(event)" onpointerup="window.stopBackspace()" onpointerleave="window.stopBackspace()">⌫</span>', command: 'ignore' }
                         ],
                         [
                             { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboardLayer', 'mobile-symbols'] },
@@ -1382,7 +1409,7 @@
                         [
                             { class: 'action', label: '=\\<', width: 1.5, command: ['switchKeyboardLayer', 'mobile-symbols2'] },
                             { latex: '*' }, { latex: '"' }, { latex: "'" }, { latex: ':' }, { latex: ';' }, { latex: '!' }, { latex: '?' },
-                            { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' }
+                            { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="window.startBackspace(event)" onpointerup="window.stopBackspace()" onpointerleave="window.stopBackspace()">⌫</span>', width: 1.5, command: 'ignore' }
                         ],
                         [
                             { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboardLayer', 'mobile-default'] },
@@ -1408,7 +1435,7 @@
                             { class: 'action', label: '_', command: ['insert', '_{#?}'] }, { latex: '=' }, { latex: '\\{' }, { latex: '\\}' }, { latex: '\\backslash' }
                         ],
                         [
-                            { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' },
+                            { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="window.startBackspace(event)" onpointerup="window.stopBackspace()" onpointerleave="window.stopBackspace()">⌫</span>', width: 1.5, command: 'ignore' },
                             { latex: '@' }, { latex: '\\#' },
                             { latex: '[' }, { latex: ']' },
                             { latex: ',' }, { latex: '.' }
