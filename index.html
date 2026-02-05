@@ -1280,12 +1280,12 @@
                         ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
                         ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
                         [
-                            { class: 'action', label: '⇧', command: ['switchKeyboard', 'mobile-shift'], layer: 'mobile-shift' }, // Try explicit shift if supported or just shift layer
+                            { class: 'action', label: '⇧', command: 'switchKeyboard', args: ['mobile-shift'] }, // Try explicit shift if supported or just shift layer
                             'z', 'x', 'c', 'v', 'b', 'n', 'm',
                             { class: 'action', label: '⌫', command: 'deleteBackward' }
                         ],
                         [
-                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'mobile-symbols'], layer: 'mobile-symbols' },
+                            { class: 'action', label: '?123', width: 1.5, command: 'switchKeyboard', args: ['mobile-symbols'] },
                             { latex: ',' },
                             // Removed emoji key to fit spacebar
                             { class: 'action', label: ' ', latex: '\\,', width: 5 },
@@ -1302,12 +1302,12 @@
                         ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
                         ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
                         [
-                            { class: 'action', label: '⇧', command: ['switchKeyboard', 'mobile-default'], layer: 'mobile-default', style: 'background: #4da6ff; color: white;' }, // Toggle back
+                            { class: 'action', label: '⇧', command: 'switchKeyboard', args: ['mobile-default'], style: 'background: #4da6ff; color: white;' }, // Toggle back
                             'Z', 'X', 'C', 'V', 'B', 'N', 'M',
                             { class: 'action', label: '⌫', command: 'deleteBackward' }
                         ],
                         [
-                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'mobile-symbols'], layer: 'mobile-symbols' },
+                            { class: 'action', label: '?123', width: 1.5, command: 'switchKeyboard', args: ['mobile-symbols'] },
                             { latex: ',' },
                             { class: 'action', label: ' ', latex: '\\,', width: 5 },
                             { latex: '.' },
@@ -1326,12 +1326,12 @@
                             { latex: '-' }, { latex: '+' }, { latex: '(' }, { latex: ')' }, { latex: '/' }
                         ],
                         [
-                            { class: 'action', label: '=\\<', width: 1.5, command: ['switchKeyboard', 'mobile-symbols2'], layer: 'mobile-symbols2' },
+                            { class: 'action', label: '=\\<', width: 1.5, command: 'switchKeyboard', args: ['mobile-symbols2'] },
                             { latex: '*' }, { latex: '"' }, { latex: "'" }, { latex: ':' }, { latex: ';' }, { latex: '!' }, { latex: '?' },
                             { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' }
                         ],
                         [
-                            { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboard', 'mobile-default'], layer: 'mobile-default' },
+                            { class: 'action', label: 'ABC', width: 1.5, command: 'switchKeyboard', args: ['mobile-default'] },
                             { class: 'action', label: '←', command: 'moveToPreviousChar' },
                             { class: 'action', label: '→', command: 'moveToNextChar' },
                             { class: 'action', label: ' ', latex: '\\,', width: 2 },
@@ -1360,7 +1360,7 @@
                             { latex: ',' }, { latex: '.' }
                         ],
                         [
-                            { class: 'action', label: 'ABC', width: 1.5, command: ['switchKeyboard', 'mobile-default'] },
+                            { class: 'action', label: 'ABC', width: 1.5, command: 'switchKeyboard', args: ['mobile-default'] },
                             { latex: '<' },
                             { class: 'action', label: 'Undo', width: 1.0, command: 'undo' },
                             { class: 'action', label: ' ', latex: '\\,', width: 4 },
