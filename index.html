@@ -1385,7 +1385,7 @@
                         [
                             { class: 'action', label: '⇧', command: ['switchKeyboardLayer', 'mobile-default'], style: 'background: #4da6ff; color: white;' }, // Toggle back
                             'Z', 'X', 'C', 'V', 'B', 'N', 'M',
-                            { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="event.preventDefault(); event.stopPropagation(); window.startBackspace(event)" onpointerup="window.stopBackspace()" onpointerleave="window.stopBackspace()">⌫</span>', command: 'ignore' }
+                            { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="window.startBackspace(event)" onpointerup="window.stopBackspace()" onpointerleave="window.stopBackspace()">⌫</span>', width: 1.5, command: 'ignore' }
                         ],
                         [
                             { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboardLayer', 'mobile-symbols'] },
