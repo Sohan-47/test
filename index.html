@@ -1313,7 +1313,7 @@
 
             // 3. Last Resort: Global API (Switch by ID if label fails)
             if (window.mathVirtualKeyboard && window.mathVirtualKeyboard.executeCommand) {
-                const layerId = label === 'Shift' ? 'mobile-shift' : (label === '?123' ? 'mobile-symbols' : 'mobile-default');
+                const layerId = (label === 'Shift' || label === '⇧') ? 'mobile-shift' : (label === '?123' ? 'mobile-symbols' : 'mobile-default');
                 window.mathVirtualKeyboard.executeCommand('switchKeyboardLayer', layerId);
             }
         };
@@ -1361,7 +1361,7 @@
                         ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
                         [
                             // HTML Label Hack: Inline event handler to bypass command system
-                            { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="event.preventDefault(); event.stopPropagation(); window.sneakySwitchLayer(\'Shift\');">⇧</span>', command: 'ignore' },
+                            { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="event.preventDefault(); event.stopPropagation(); window.sneakySwitchLayer(\'⇧\');">⇧</span>', command: 'ignore' },
                             'z', 'x', 'c', 'v', 'b', 'n', 'm',
                             { class: 'action', label: '<span style="display:block; width:100%; height:100%" onpointerdown="window.startBackspace(event)" onpointerup="window.stopBackspace()" onpointerleave="window.stopBackspace()">⌫</span>', width: 1.5, command: 'ignore' }
                         ],
