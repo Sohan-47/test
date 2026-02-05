@@ -2035,27 +2035,29 @@
                     mfe._lastInputTime = Date.now();
 
                     // 2. CHECK SHORTCUTS
-                    for (const key of sortedShortcutKeys) {
-                        if (mfe._keyBuffer && mfe._keyBuffer.endsWith(key) && !mfe._keyBuffer.endsWith('\\\\' + key)) {
-                            // Boundary check: Word boundary
-                            const prefix = mfe._keyBuffer.slice(0, -key.length);
-                            if (prefix.length > 0 && /[a-zA-Z]$/.test(prefix)) continue;
+                    if (isMathMode) { // Enforce Math Mode for Shortcuts
+                        for (const key of sortedShortcutKeys) {
+                            if (mfe._keyBuffer && mfe._keyBuffer.endsWith(key) && !mfe._keyBuffer.endsWith('\\\\' + key)) {
+                                // Boundary check: Word boundary
+                                const prefix = mfe._keyBuffer.slice(0, -key.length);
+                                if (prefix.length > 0 && /[a-zA-Z]$/.test(prefix)) continue;
 
-                            const executeShortcut = () => {
-                                const latex = savedShortcuts[key];
-                                for (let i = 0; i < key.length; i++) mfe.executeCommand('deleteBackward');
-                                mfe.executeCommand(['insert', latex]);
-                                mfe._keyBuffer = '';
-                                debugOverlay.innerText = 'Buf: [Executed]';
-                                debugOverlay.style.color = '#0f0';
-                            };
+                                const executeShortcut = () => {
+                                    const latex = savedShortcuts[key];
+                                    for (let i = 0; i < key.length; i++) mfe.executeCommand('deleteBackward');
+                                    mfe.executeCommand(['insert', latex]);
+                                    mfe._keyBuffer = '';
+                                    debugOverlay.innerText = 'Buf: [Executed]';
+                                    debugOverlay.style.color = '#0f0';
+                                };
 
-                            if (ambiguousKeys.has(key)) {
-                                shortcutTimer = setTimeout(() => executeShortcut(), 300);
-                            } else {
-                                executeShortcut();
+                                if (ambiguousKeys.has(key)) {
+                                    shortcutTimer = setTimeout(() => executeShortcut(), 300);
+                                } else {
+                                    executeShortcut();
+                                }
+                                return;
                             }
-                            return;
                         }
                     }
                 }
@@ -2545,6 +2547,10 @@
             // Bind Mode Toggle (Input Mode: Math/Text)
             const modeBtn = document.getElementById('mode-status');
             if (modeBtn) modeBtn.onclick = toggleMode;
+
+            // Bind Help Button
+            const helpBtn = document.getElementById('help-btn');
+            if (helpBtn) helpBtn.onclick = toggleHelp;
         };
         // Debounce resize to prevent rapid clearing on mobile UI shifts
         let resizeTimer;
