@@ -1265,6 +1265,26 @@
         // Improved mobile detection: Touch OR Small Screen
         const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1024;
 
+        // Sneaky Fix: Simulate tap on tabs
+        window.sneakySwitchLayer = (label) => {
+            console.log("Sneaky switching to:", label);
+            // Attempt 1: Find tab by text content
+            const tabs = document.querySelectorAll('.ML__keyboard .MLK__layer-tab, .ML__keyboard .ML__layer-switcher > div, .MLK__layer-switcher .MLK__layer-tab');
+            for (let tab of tabs) {
+                if (tab.innerText.trim() === label || tab.textContent.trim() === label || tab.getAttribute('data-layer') === label) {
+                    // Flash effect for feedback
+                    tab.style.backgroundColor = '#ecf0f1';
+                    setTimeout(() => tab.style.backgroundColor = '', 100);
+                    tab.click();
+                    return;
+                }
+            }
+            // Attempt 2: Fallback to command if API exposes it
+            if (window.mathVirtualKeyboard && window.mathVirtualKeyboard.executeCommand) {
+                window.mathVirtualKeyboard.executeCommand('switchKeyboard', label);
+            }
+        };
+
         /* === AUTHENTIC GBOARD REPLICA LAYOUT === */
         if (isMobile && window.mathVirtualKeyboard) {
             console.log("Mobile Gboard Layout Active");
@@ -1280,12 +1300,12 @@
                         ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
                         ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
                         [
-                            { class: 'action', label: '⇧', layer: 'mobile-shift' }, // Explicit layer property
+                            { class: 'action', label: '⇧', command: () => window.sneakySwitchLayer('Shift') }, // Sneaky tap
                             'z', 'x', 'c', 'v', 'b', 'n', 'm',
                             { class: 'action', label: '⌫', command: 'deleteBackward' }
                         ],
                         [
-                            { class: 'action', label: '?123', width: 1.5, layer: 'mobile-symbols' },
+                            { class: 'action', label: '?123', width: 1.5, command: () => window.sneakySwitchLayer('?123') },
                             { latex: ',' },
                             // Removed emoji key to fit spacebar
                             { class: 'action', label: ' ', latex: '\\,', width: 5 },
