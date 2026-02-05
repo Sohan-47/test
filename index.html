@@ -1265,23 +1265,51 @@
         // Improved mobile detection: Touch OR Small Screen
         const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1024;
 
-        // Sneaky Fix: Simulate tap on tabs
+        // Sneaky Fix: Simulate tap on tabs (Robust V2)
         window.sneakySwitchLayer = (label) => {
             console.log("Sneaky switching to:", label);
-            // Attempt 1: Find tab by text content
-            const tabs = document.querySelectorAll('.ML__keyboard .MLK__layer-tab, .ML__keyboard .ML__layer-switcher > div, .MLK__layer-switcher .MLK__layer-tab');
-            for (let tab of tabs) {
-                if (tab.innerText.trim() === label || tab.textContent.trim() === label || tab.getAttribute('data-layer') === label) {
-                    // Flash effect for feedback
-                    tab.style.backgroundColor = '#ecf0f1';
-                    setTimeout(() => tab.style.backgroundColor = '', 100);
-                    tab.click();
-                    return;
+
+            // Helper to trigger full click sequence
+            const triggerClick = (el) => {
+                console.log("Clicking element:", el);
+                const opts = { bubbles: true, cancelable: true, view: window };
+                el.dispatchEvent(new PointerEvent('pointerdown', opts));
+                el.dispatchEvent(new MouseEvent('mousedown', opts));
+                el.dispatchEvent(new PointerEvent('pointerup', opts));
+                el.dispatchEvent(new MouseEvent('mouseup', opts));
+                el.click();
+            };
+
+            const findAndClick = (root) => {
+                // Expanded selectors for various MathLive versions
+                const tabs = root.querySelectorAll('.MLK__layer-tab, .ML__layer-switcher > div, [data-layer], button');
+                for (let tab of tabs) {
+                    // Check Visible Text or Title or Data Attribute
+                    const text = tab.innerText || tab.textContent || "";
+                    // Loose matching
+                    if (text.trim() === label || tab.getAttribute('data-layer') === label || tab.getAttribute('title') === label || text.includes(label)) {
+                        tab.style.backgroundColor = '#ecf0f1'; // Feedback
+                        setTimeout(() => tab.style.backgroundColor = '', 150);
+                        triggerClick(tab);
+                        return true;
+                    }
                 }
+                return false;
+            };
+
+            // 1. Try Light DOM
+            if (findAndClick(document.body)) return;
+
+            // 2. Try Shadow DOM (math-virtual-keyboard)
+            const keyboardEl = document.querySelector('math-virtual-keyboard');
+            if (keyboardEl && keyboardEl.shadowRoot) {
+                if (findAndClick(keyboardEl.shadowRoot)) return;
             }
-            // Attempt 2: Fallback to command if API exposes it
+
+            // 3. Last Resort: Global API (Switch by ID if label fails)
             if (window.mathVirtualKeyboard && window.mathVirtualKeyboard.executeCommand) {
-                window.mathVirtualKeyboard.executeCommand('switchKeyboard', label);
+                const layerId = label === 'Shift' ? 'mobile-shift' : (label === '?123' ? 'mobile-symbols' : 'mobile-default');
+                window.mathVirtualKeyboard.executeCommand('switchKeyboardLayer', layerId);
             }
         };
 
