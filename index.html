@@ -806,6 +806,8 @@
                 width: 32px;
                 height: 32px;
                 font-size: 14px;
+                z-index: 10000 !important;
+                pointer-events: auto !important;
             }
 
             /* Reposition Mode Status - Below Help Button (Right Aligned) */
@@ -821,9 +823,10 @@
                 padding: 5px 10px;
                 cursor: pointer;
                 background: #383838;
-                border: 1px solid #444;
                 color: white;
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+                z-index: 10000 !important;
+                pointer-events: auto !important;
             }
 
             #mode-status:active {
@@ -2546,11 +2549,34 @@
             }
             // Bind Mode Toggle (Input Mode: Math/Text)
             const modeBtn = document.getElementById('mode-status');
-            if (modeBtn) modeBtn.onclick = toggleMode;
+            if (modeBtn) {
+                modeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMode();
+                };
+                // Touch support
+                modeBtn.ontouchstart = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleMode();
+                };
+            }
 
             // Bind Help Button
             const helpBtn = document.getElementById('help-btn');
-            if (helpBtn) helpBtn.onclick = toggleHelp;
+            if (helpBtn) {
+                helpBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleHelp();
+                };
+                helpBtn.ontouchstart = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleHelp();
+                };
+            }
         };
         // Debounce resize to prevent rapid clearing on mobile UI shifts
         let resizeTimer;
