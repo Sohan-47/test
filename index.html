@@ -794,9 +794,10 @@
             }
 
             /* Math boxes bigger on mobile */
+            /* Math boxes bigger on mobile */
             .math-box {
-                min-width: 280px;
-                max-width: calc(100vw - 20px);
+                min-width: 250px;
+                /* Max width removed here too to prevent capping */
                 min-height: 60px;
             }
 
@@ -1300,11 +1301,12 @@
                         ],
                         [
                             { latex: '€' }, { latex: '¥' }, { latex: '\\$' }, { latex: '¢' }, { class: 'action', label: '^', command: ['insert', '^{#?}'] },
-                            { class: 'action', label: '_', command: ['insert', '_{#?}'] }, { latex: '=' }, { latex: '\\{' }, { latex: '\\}' }, { latex: '\\backslash' }
+                            { class: 'action', label: '_', command: ['moveToSubscript'] }, { latex: '=' }, { latex: '\\{' }, { latex: '\\}' }, { latex: '\\backslash' }
                         ],
                         [
-                            { class: 'action', label: '?123', width: 1.5, command: ['switchKeyboard', 'mobile-symbols'], layer: 'mobile-symbols' },
-                            { latex: '\\%' }, { latex: '\\copyright' }, { latex: '\\text{\\textcircled{R}}' }, { latex: '\\text{TM}' }, { latex: '\\checkmark' },
+                            { class: 'action', label: '←', command: 'moveToPreviousChar' },
+                            { class: 'action', label: '→', command: 'moveToNextChar' },
+                            { latex: '@' }, { latex: '\\#' },
                             { latex: '[' }, { latex: ']' },
                             { class: 'action', label: '⌫', width: 1.5, command: 'deleteBackward' }
                         ],
@@ -1591,16 +1593,19 @@
 
         function resizeCanvas() {
             // Infinite Canvas logic
-            // Only update if dimension ACTUALLY needs to increase, or if it's the first run
-            const newWidth = Math.max(window.innerWidth, 5000);
-            const newHeight = Math.max(window.innerHeight, document.documentElement.scrollHeight, 5000);
+            // Include pan offset in size calculation to prevent clipping when panning right/down
+            const panBufferX = Math.abs(panX) + 2000;
+            const panBufferY = Math.abs(panY) + 2000;
+            const newWidth = Math.max(window.innerWidth + panBufferX, 5000);
+            const newHeight = Math.max(window.innerHeight + panBufferY, document.documentElement.scrollHeight + panBufferY, 5000);
 
             // Access current dimensions
             const currentW = drawingLayer.width;
             const currentH = drawingLayer.height;
 
-            // If dimensions match (or are smaller than existing 5000 buffer), DO NOT RESIZE/CLEAR
-            if (newWidth === currentW && newHeight === currentH) {
+            // If dimensions match (or are smaller than existing buffer), DO NOT RESIZE/CLEAR
+            // Only grow, never shrink (unless explicitly cleared, but here we just handle infinite growth)
+            if (newWidth <= currentW && newHeight <= currentH) {
                 return;
             }
 
@@ -1632,7 +1637,7 @@
         drawSurface.addEventListener('mousedown', (e) => {
             if (currentTool === 'pointer') return;
             isDrawing = true;
-            document.body.classList.add('is-zooming'); // Optimization: Hide shadows
+            // Removed is-zooming optimization to fix lag
             startX = e.pageX; startY = e.pageY;
             if (currentTool === 'pen' || currentTool === 'eraser') {
                 dCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
@@ -1687,7 +1692,7 @@
         });
 
         window.addEventListener('mouseup', (e) => {
-            document.body.classList.remove('is-zooming'); // Optimization End
+            // Optimization removed
             if (isDrawingArrow) {
                 isDrawingArrow = false;
                 // Double history entry removed (saved on mousedown/touchstart)
@@ -1744,7 +1749,7 @@
         drawSurface.addEventListener('touchstart', (e) => {
             if (currentTool === 'pointer' || currentTool === 'arrow') return;
             e.preventDefault();
-            document.body.classList.add('is-zooming'); // Optimization: Hide shadows
+            // Optimization removed
             const pos = getTouchPos(e);
             isDrawing = true;
             startX = pos.x; startY = pos.y;
@@ -1807,8 +1812,9 @@
         }, { passive: false });
 
         drawSurface.addEventListener('touchend', (e) => {
-            document.body.classList.remove('is-zooming'); // Optimization End
+            // Optimization removed
             if (!isDrawing) return;
+
             const pos = getTouchPos(e);
             const curX = pos.x, curY = pos.y;
             if (currentTool === 'line') {
