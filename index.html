@@ -793,7 +793,8 @@
             }
 
             #mobile-zoom-controls {
-                display: flex;
+                display: none;
+                /* Hide container if still used, but we moved button out */
             }
 
             /* Reposition Help Button - Top Right */
@@ -1086,11 +1087,9 @@
     </div>
 
     <!-- Mobile Zoom Controls -->
-    <div id="mobile-zoom-controls">
-        <button id="zoom-in-btn" title="Zoom In">+</button>
-        <button id="zoom-out-btn" title="Zoom Out">−</button>
-        <button id="zoom-reset-btn" title="Reset Zoom">⟲</button>
-    </div>
+    <!-- +/- Buttons removed by request -->
+    <button id="zoom-reset-btn" title="Reset Zoom"
+        style="position:fixed; top:88px; right:10px; width:34px; height:34px; background:#383838; color:white; border:1px solid #444; border-radius:8px; font-size:18px; z-index:3500; cursor:pointer;">⟲</button>
 
     <!-- Using MathLive's custom minimal QWERTY keyboard instead of native keyboard proxy -->
 
