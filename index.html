@@ -903,6 +903,152 @@
             #toast {
                 bottom: 80px;
             }
+
+            /* --- NEW MOBILE UI --- */
+            /* FABs Container */
+            .mobile-fab-container {
+                position: fixed;
+                top: 40%;
+                left: 10px;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                z-index: 4000;
+            }
+
+            .mobile-fab {
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background: var(--panel);
+                border: 1px solid #444;
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+                transition: transform 0.2s, background 0.2s;
+                position: relative;
+            }
+
+            .mobile-fab:active,
+            .mobile-fab.active {
+                transform: scale(0.95);
+                background: #444;
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+
+            /* Tools Panel - Rectangular Slide-out */
+            .mobile-tools-panel {
+                position: absolute;
+                left: 60px;
+                top: 0;
+                background: var(--panel);
+                border: 1px solid #444;
+                border-radius: 12px;
+                padding: 8px;
+                display: flex;
+                gap: 8px;
+                opacity: 0;
+                visibility: hidden;
+                transform: translateX(-10px);
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+                width: max-content;
+            }
+
+            .mobile-tools-panel.open {
+                opacity: 1;
+                visibility: visible;
+                transform: translateX(0);
+            }
+
+            .mobile-tool-btn {
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                background: #383838;
+                border: 1px solid #444;
+                color: #ddd;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .mobile-tool-btn.active {
+                background: var(--accent);
+                color: white;
+                border-color: var(--accent);
+            }
+
+            /* File Palette - Fan/Slide out */
+            .mobile-file-palette {
+                position: absolute;
+                left: 60px;
+                top: 0;
+                display: flex;
+                gap: 12px;
+                pointer-events: none;
+                /* Let clicks pass when closed */
+            }
+
+            .palette-btn {
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                background: var(--panel);
+                border: 1px solid #444;
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                cursor: pointer;
+                opacity: 0;
+                transform: translateX(-20px) scale(0.8);
+                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                pointer-events: auto;
+            }
+
+            .mobile-fab-container.file-open .palette-btn {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+
+            /* Staggered animation handled in JS or via nth-child delay */
+            .palette-btn:nth-child(1) {
+                transition-delay: 0.05s;
+            }
+
+            .palette-btn:nth-child(2) {
+                transition-delay: 0.1s;
+            }
+
+            .palette-btn:nth-child(3) {
+                transition-delay: 0.15s;
+            }
+
+            /* Label hints for palette */
+            .palette-btn::after {
+                content: attr(data-label);
+                position: absolute;
+                top: -25px;
+                background: #222;
+                color: #aaa;
+                font-size: 10px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                white-space: nowrap;
+                opacity: 0;
+                transition: opacity 0.2s;
+                pointer-events: none;
+            }
+
+            .palette-btn:active::after {
+                opacity: 1;
+            }
         }
     </style>
 </head>
@@ -1007,84 +1153,110 @@
 
     <input type="file" id="file-input" accept=".able" style="display: none;">
 
-    <!-- Mobile Menu Button -->
-    <button id="mobile-menu-btn" aria-label="Open menu">☰</button>
-
-    <!-- Mobile Drawer Overlay -->
-    <div id="mobile-drawer-overlay"></div>
-
-    <!-- Mobile Drawer -->
-    <div id="mobile-drawer">
-        <div class="drawer-section">
-            <h3>Drawing Tools</h3>
-            <div class="drawer-tools">
-                <button class="drawer-btn active" data-tool="pointer" title="Pointer">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- Mobile FABs -->
+    <div class="mobile-fab-container">
+        <!-- Tools FAB -->
+        <div style="position:relative;">
+            <div id="mobile-tools-btn" class="mobile-fab" title="Drawing Tools">
+                <!-- Pen Icon -->
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+                </svg>
+            </div>
+            <!-- Slide-out Tools Panel -->
+            <div id="mobile-tools-panel" class="mobile-tools-panel">
+                <div class="mobile-tool-btn active" data-tool="pointer"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-                    </svg>
-                </button>
-                <button class="drawer-btn" data-tool="pen" title="Pen">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    </svg></div>
+                <div class="mobile-tool-btn" data-tool="pen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
                         <path d="M12 19l7-7 3 3-7 7-3-3z" />
                         <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-                    </svg>
-                </button>
-                <button class="drawer-btn" data-tool="line" title="Line">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="5" y1="19" x2="19" y2="5" />
-                    </svg>
-                </button>
-                <button class="drawer-btn" data-tool="circle" title="Circle">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="9" />
-                    </svg>
-                </button>
-                <button class="drawer-btn" data-tool="curve" title="Curve">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 12c0-5 9-5 9 0s9 5 9 0" />
-                    </svg>
-                </button>
-                <button class="drawer-btn" data-tool="eraser" title="Eraser">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    </svg></div>
+                <div class="mobile-tool-btn" data-tool="eraser"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z" />
-                    </svg>
-                </button>
-                <button class="drawer-btn" data-tool="arrow" title="Arrow">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    </svg></div>
+                <div class="mobile-tool-btn" data-tool="line"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="19" x2="19" y2="5" />
+                    </svg></div>
+                <div class="mobile-tool-btn" data-tool="circle"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="9" />
+                    </svg></div>
+                <div class="mobile-tool-btn" data-tool="curve"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12c0-5 9-5 9 0s9 5 9 0" />
+                    </svg></div>
+                <div class="mobile-tool-btn" data-tool="arrow"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="5" y1="19" x2="19" y2="5" />
                         <polyline points="10 5 19 5 19 14" />
-                    </svg>
-                </button>
-                <button class="drawer-btn" data-tool="grid" title="Grid">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    </svg></div>
+                <div class="mobile-tool-btn" data-tool="grid"><svg width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="3" width="18" height="18" rx="2" />
                         <line x1="3" y1="9" x2="21" y2="9" />
                         <line x1="9" y1="3" x2="9" y2="21" />
+                    </svg></div>
+            </div>
+        </div>
+
+        <!-- File FAB -->
+        <div style="position:relative;">
+            <div id="mobile-file-btn" class="mobile-fab" title="File Actions">
+                <!-- Folder Icon -->
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </div>
+            <!-- Slide-out File Palette -->
+            <div id="mobile-file-palette" class="mobile-file-palette">
+                <!-- Export .able (Down Arrow) -->
+                <div class="palette-btn" id="pal-export-able" data-label="Export .able"
+                    style="color:#059669; border-color:#059669;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                        <text x="16" y="10"
+                            style="font-size:6px; fill:currentColor; stroke:none; font-weight:bold;">ABLE</text>
                     </svg>
-                </button>
+                </div>
+                <!-- Import .able (Up Arrow) -->
+                <div class="palette-btn" id="pal-import-able" data-label="Import .able"
+                    style="color:#7c3aed; border-color:#7c3aed;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                        <text x="16" y="10"
+                            style="font-size:6px; fill:currentColor; stroke:none; font-weight:bold;">ABLE</text>
+                    </svg>
+                </div>
+                <!-- Clear All (Red Brush/Trash) -->
+                <div class="palette-btn" id="pal-clear" data-label="Clear All"
+                    style="color:#dc2626; border-color:#dc2626;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </div>
             </div>
         </div>
-
-        <div class="drawer-section">
-            <h3>Actions</h3>
-            <div class="drawer-actions">
-                <button id="mobile-new-box-btn" class="btn" style="background:var(--accent)">+ New Math Box</button>
-                <button id="mobile-undo-btn" class="btn" style="background:#444">Undo</button>
-                <button id="mobile-clear-btn" class="btn" style="background:#dc2626">Clear All</button>
-            </div>
-        </div>
-
-        <div class="drawer-section">
-            <h3>File</h3>
-            <div class="drawer-actions">
-                <button id="mobile-export-able-btn" class="btn" style="background:#059669">Export .able</button>
-                <button id="mobile-import-able-btn" class="btn" style="background:#7c3aed">Import .able</button>
-                <button id="mobile-export-pdf-btn" class="btn" style="background:var(--accent)">Export PDF</button>
-            </div>
-        </div>
-
-
     </div>
+
+    <!-- Standalone Undo Button -->
+    <button id="mobile-undo-btn-standalone" title="Undo"
+        style="position:fixed; top:128px; right:10px; width:34px; height:34px; background:#383838; color:white; border:1px solid #444; border-radius:8px; font-size:16px; z-index:3500; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 14L4 9l5-5" />
+            <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+        </svg>
+    </button>
 
     <!-- Mobile Zoom Controls -->
     <!-- +/- Buttons removed by request -->
@@ -2306,39 +2478,7 @@
         };
         document.getElementById('export-btn').onclick = exportToPDF;
 
-        /* === MOBILE DRAWER FUNCTIONALITY === */
-        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-        const mobileDrawer = document.getElementById('mobile-drawer');
-        const mobileDrawerOverlay = document.getElementById('mobile-drawer-overlay');
-        const mobileTextInput = document.getElementById('mobile-text-input');
-
-        let activeMathField = null; // Track the last focused math field
-
-        // Connect Mobile Buttons
-        if (document.getElementById('mobile-undo-btn')) {
-            document.getElementById('mobile-undo-btn').onclick = () => { performUndo(); closeMobileDrawer(); };
-        }
-        if (document.getElementById('mobile-clear-btn')) {
-            document.getElementById('mobile-clear-btn').onclick = () => { clearEditor(); closeMobileDrawer(); };
-        }
-
-        function openMobileDrawer() {
-            mobileDrawer.classList.add('open');
-            mobileDrawerOverlay.classList.add('open');
-        }
-
-        function closeMobileDrawer() {
-            mobileDrawer.classList.remove('open');
-            mobileDrawerOverlay.classList.remove('open');
-        }
-
-        if (mobileMenuBtn) {
-            mobileMenuBtn.onclick = openMobileDrawer;
-        }
-
-        if (mobileDrawerOverlay) {
-            mobileDrawerOverlay.onclick = closeMobileDrawer;
-        }
+        /* === MOBILE DRAWER REMOVED === */
 
         // Drawer tool buttons
         document.querySelectorAll('#mobile-drawer .drawer-btn').forEach(btn => {
@@ -2461,6 +2601,109 @@
                     }
                 }
             });
+        }
+
+        /* === MOBILE FAB UI LOGIC === */
+        const mobileToolsBtn = document.getElementById('mobile-tools-btn');
+        const mobileToolsPanel = document.getElementById('mobile-tools-panel');
+        const mobileFileBtn = document.getElementById('mobile-file-btn');
+        const mobileFilePalette = document.getElementById('mobile-file-palette');
+        const mobileFabContainer = document.querySelector('.mobile-fab-container');
+        const mobileUndoBtnStandalone = document.getElementById('mobile-undo-btn-standalone');
+
+        // Toggle Tools Panel
+        if (mobileToolsBtn) {
+            mobileToolsBtn.onclick = (e) => {
+                e.stopPropagation();
+                // Close File Palette if open
+                mobileFabContainer.classList.remove('file-open');
+                mobileFileBtn.classList.remove('active');
+
+                // Toggle Panel
+                const isOpen = mobileToolsPanel.classList.contains('open');
+                mobileToolsPanel.classList.toggle('open', !isOpen);
+                mobileToolsBtn.classList.toggle('active', !isOpen);
+            };
+        }
+
+        // Toggle File Palette
+        if (mobileFileBtn) {
+            mobileFileBtn.onclick = (e) => {
+                e.stopPropagation();
+                // Close Tools Panel if open
+                mobileToolsPanel.classList.remove('open');
+                mobileToolsBtn.classList.remove('active');
+
+                // Toggle Palette
+                mobileFabContainer.classList.toggle('file-open');
+                mobileFileBtn.classList.toggle('active');
+            };
+        }
+
+        // Close menus when clicking outside
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('.mobile-fab-container')) {
+                if (mobileToolsPanel) mobileToolsPanel.classList.remove('open');
+                if (mobileToolsBtn) mobileToolsBtn.classList.remove('active');
+                if (mobileFabContainer) mobileFabContainer.classList.remove('file-open');
+                if (mobileFileBtn) mobileFileBtn.classList.remove('active');
+            }
+        });
+
+        // Tool Selection Logic (Mobile)
+        document.querySelectorAll('.mobile-tool-btn').forEach(btn => {
+            btn.onclick = () => {
+                const tool = btn.dataset.tool;
+                if (tool === 'grid') {
+                    const g = document.getElementById('grid-layer');
+                    const isVisible = g.style.display !== 'none';
+                    g.style.display = isVisible ? 'none' : 'block';
+                    btn.classList.toggle('active', !isVisible);
+                } else {
+                    currentTool = tool;
+                    document.querySelectorAll('.mobile-tool-btn').forEach(b => {
+                        if (b.dataset.tool !== 'grid') b.classList.remove('active');
+                    });
+                    btn.classList.add('active');
+
+                    // Sync with sidebar (desktop)
+                    document.querySelectorAll('.sidebar .side-btn').forEach(b => b.classList.remove('active'));
+                    const desktopBtn = document.getElementById('tool-' + tool);
+                    if (desktopBtn) desktopBtn.classList.add('active');
+
+                    // If tool is drawing type, ensure surface is active
+                    drawSurface.classList.toggle('active', tool !== 'pointer' && tool !== 'arrow');
+                }
+                // Close panel after selection
+                mobileToolsPanel.classList.remove('open');
+                mobileToolsBtn.classList.remove('active');
+            };
+        });
+
+        // File Palette Actions
+        const palExport = document.getElementById('pal-export-able');
+        if (palExport) palExport.onclick = () => {
+            document.getElementById('export-able-btn').click();
+            mobileFabContainer.classList.remove('file-open'); mobileFileBtn.classList.remove('active');
+        };
+
+        const palImport = document.getElementById('pal-import-able');
+        if (palImport) palImport.onclick = () => {
+            document.getElementById('import-able-btn').click();
+            mobileFabContainer.classList.remove('file-open'); mobileFileBtn.classList.remove('active');
+        };
+
+        const palClear = document.getElementById('pal-clear');
+        if (palClear) palClear.onclick = () => {
+            clearEditor();
+            mobileFabContainer.classList.remove('file-open'); mobileFileBtn.classList.remove('active');
+        };
+
+        // Standalone Undo
+        if (mobileUndoBtnStandalone) {
+            mobileUndoBtnStandalone.onclick = () => {
+                performUndo();
+            };
         }
 
         /* === MOBILE ZOOM & PAN === */
