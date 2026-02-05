@@ -1630,53 +1630,37 @@
         }
 
         /* --- CANVAS MANAGEMENT --- */
-        let editorMode = 'infinite'; // 'infinite' or 'document'
+        const CANVAS_WIDTH = 1588; // 2 * A4 Width
+        const CANVAS_HEIGHT = 3369; // 3 * A4 Height
+
+        let editorMode = 'fixed'; // 'infinite' or 'document' -> Now effectively fixed
 
         // Re-implementing Toggle Document Mode for the UI Button
         const toggleDocumentMode = () => {
-            editorMode = editorMode === 'infinite' ? 'document' : 'infinite';
-            const statusEl = document.getElementById('mode-status');
-            if (statusEl) statusEl.textContent = 'MODE: ' + (editorMode === 'infinite' ? 'INFINITE' : 'DOCUMENT');
-
-            resizeCanvas();
-
-            // Center view if switching to document
-            if (editorMode === 'document') {
-                currentZoom = 0.8;
-                panX = (window.innerWidth - 1200 * currentZoom) / 2;
-                panY = 50;
-                applyTransform();
-                document.body.classList.add('document-mode');
-                canvasArea.classList.add('page-boundary');
-            } else {
-                document.body.classList.remove('document-mode');
-                canvasArea.classList.remove('page-boundary');
-            }
-            showToast('Switched to ' + (editorMode === 'infinite' ? 'Infinite' : 'Document') + ' Mode');
+            // Deprecated functionality - No-op or Mode Switch if needed.
+            // Keeping function signature to avoid breaking listener if bound.
+            console.log("Document mode toggle deprecated.");
         };
 
         // Expose to window for global access if needed
         window.toggleDocumentMode = toggleDocumentMode;
 
         function resizeCanvas() {
-            // Infinite Canvas logic
-            // Include pan offset in size calculation to prevent clipping when panning right/down
-            const panBufferX = Math.abs(panX) + 2000;
-            const panBufferY = Math.abs(panY) + 2000;
-            const newWidth = Math.max(window.innerWidth + panBufferX, 5000);
-            const newHeight = Math.max(window.innerHeight + panBufferY, document.documentElement.scrollHeight + panBufferY, 5000);
+            // FIXED Canvas logic (2x3 A4)
+            const newWidth = CANVAS_WIDTH;
+            const newHeight = CANVAS_HEIGHT;
 
             // Access current dimensions
             const currentW = drawingLayer.width;
             const currentH = drawingLayer.height;
 
-            // If dimensions match (or are smaller than existing buffer), DO NOT RESIZE/CLEAR
-            // Only grow, never shrink (unless explicitly cleared, but here we just handle infinite growth)
-            if (newWidth <= currentW && newHeight <= currentH) {
-                return;
-            }
+            if (dataPreserved && currentW === newWidth && currentH === newHeight) return;
 
-            const data = drawingLayer.toDataURL();
+            // Preserve data
+            let data = null;
+            if (currentW > 0) {
+                try { data = drawingLayer.toDataURL(); } catch (e) { }
+            }
 
             drawingLayer.width = previewLayer.width = newWidth;
             drawingLayer.height = previewLayer.height = newHeight;
@@ -1689,14 +1673,25 @@
             arrowLayer.style.width = newWidth + 'px';
             arrowLayer.style.height = newHeight + 'px';
 
+            // Add visual border for paper boundary
+            canvasArea.style.boxShadow = "0 0 50px rgba(0,0,0,0.5)";
+            canvasArea.style.backgroundColor = "#1e1e1e"; // Match theme, or make it distinct? Keeping dark.
+
             [dCtx, pCtx].forEach(c => {
                 c.lineCap = 'round'; c.lineJoin = 'round';
                 c.strokeStyle = '#4da6ff'; c.lineWidth = 3;
             });
-            const img = new Image();
-            img.onload = () => dCtx.drawImage(img, 0, 0);
-            img.src = data;
+
+            if (data) {
+                const img = new Image();
+                img.onload = () => dCtx.drawImage(img, 0, 0);
+                img.src = data;
+            }
+            dataPreserved = true;
         }
+        let dataPreserved = false;
+
+
 
 
 
@@ -2137,10 +2132,8 @@
         }
 
         function updateCanvasHeight() {
-            let maxY = window.innerHeight;
-            document.querySelectorAll('.math-box').forEach(b => { const bot = b.offsetTop + b.offsetHeight; if (bot > maxY) maxY = bot; });
-            const fh = maxY + 1000; canvasArea.style.height = fh + 'px'; arrowLayer.style.height = fh + 'px';
-            if (drawingLayer.height < fh) resizeCanvas();
+            // DISABLED for Fixed Size
+            // resizeCanvas();
         }
 
         function toggleHelp() { helpModal.style.display = helpModal.style.display === 'flex' ? 'none' : 'flex'; }
@@ -2367,8 +2360,33 @@
         const ZOOM_STEP = 0.25;
         const zoomWrapper = document.getElementById('zoom-wrapper');
 
+        function clampPan() {
+            const scaledW = CANVAS_WIDTH * currentZoom;
+            const scaledH = CANVAS_HEIGHT * currentZoom;
+            const viewW = window.innerWidth;
+            const viewH = window.innerHeight;
+
+            // Horizontal Clamp
+            if (scaledW > viewW) {
+                // Content larger than screen: Allow panning but clamp to edges
+                // panX must be <= 0 (left edge) and >= viewW - scaledW (right edge)
+                panX = Math.min(0, Math.max(viewW - scaledW, panX));
+            } else {
+                // Content smaller than screen: Center it
+                panX = (viewW - scaledW) / 2;
+            }
+
+            // Vertical Clamp
+            if (scaledH > viewH) {
+                panY = Math.min(0, Math.max(viewH - scaledH, panY));
+            } else {
+                panY = (viewH - scaledH) / 2;
+            }
+        }
+
         function applyTransform() {
             if (zoomWrapper) {
+                clampPan(); // ENFORCE BOUNDARIES
                 zoomWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
             }
         }
